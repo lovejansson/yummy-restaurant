@@ -1,0 +1,49 @@
+html, body, main
+{
+    height: 100%;
+    width: 100%;
+ 
+    background-color: #f0f0f0;
+
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Consolas;
+ 
+}
+
+#canvas-container:hover {
+    cursor: pointer;
+}
+ 
+#canvas-container:hover > #player-card {
+    opacity: 1;
+}
+
+#player-title {
+    color: black;
+    font-weight: bold;
+}
+
+#player-card {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    opacity: 0;
+    transition: opacity 0.2s ease-in;
+    font-size: 16px;
+    font-family: Consolas, monospace;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    background: none;
+}

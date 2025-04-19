@@ -4,13 +4,10 @@ Gör klart rummet:
 - Färger ska vara mer likt videon.
 - All mat
 - All dryck
+
+
 - Alla gubbar
 
-Content 
-
-Skapa lista av valbar mat
-Skapa lista av valbar dryck 
-Skapa lista av valbar dessert
 
 
 
