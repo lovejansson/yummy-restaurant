@@ -2,9 +2,24 @@ html, body, main
 {
     height: 100%;
     width: 100%;
- 
     background-color: #f0f0f0;
+}
 
+button {
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    outline: none;
+}
+
+html {
+    font-size: 10px;
 }
 
 * {
@@ -12,38 +27,91 @@ html, body, main
     padding: 0;
     box-sizing: border-box;
     font-family: Consolas;
- 
+}
+
+
+.icon {
+    width: 2.4rem;
+
+}
+
+#canvas-container {
+    width: 750px;
 }
 
 #canvas-container:hover {
     cursor: pointer;
 }
  
-#canvas-container:hover > #player-card {
+
+#music-player > * {
+    font-size: 1.6rem!important;
+}
+
+
+
+#player-card {
+    font-family: Consolas, monospace;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#player-controls {
+    display: flex;
+    align-items: center;
+
+}
+
+#shuffle {
+   margin-right: 1rem;
+   align-items: center;
+   font-weight: bolder;
+}
+   
+#play-pause {
+    width: 24px;
+    line-height: 1;
+    align-items: center;
+}
+
+
+#play-pause:hover, #shuffle:hover{
+    opacity: 0.5;
+}
+
+#player-volume {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+}
+
+#player-volume:hover {
     opacity: 1;
 }
 
-#player-title {
-    color: black;
-    font-weight: bold;
+
+.square-filled {
+    width: 0.75em;
+    aspect-ratio: 1/1;
+    background-color: black;
 }
 
-#player-card {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    opacity: 0;
-    transition: opacity 0.2s ease-in;
-    font-size: 16px;
-    font-family: Consolas, monospace;
+#player-volume:hover {
+    opacity: 0.8;
 }
 
-button {
-    cursor: pointer;
-    border: none;
-    background: none;
+#volume:hover + #player-volume {
+    opacity: 1;
 }
+
+.square-empty {
+    width: 0.75em;
+    aspect-ratio: 1/1;
+    border: 2px solid black;
+    background-color: transparent;
+}
+
+
