@@ -10,5 +10,7 @@ Gör klart rummet:
 
 
 
+Kod 
 
+Skapa simuleringen med fyrkanter och cirklar för allt
 

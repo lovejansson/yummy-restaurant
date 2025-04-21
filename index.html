@@ -54,7 +54,8 @@
                 position: relative;
                 width: 100%;
                 height: 100%;
-                background-color: antiquewhite;
+                background-color: transparent;
+         
             }
             #player-container:hover > #player  {
                 opacity: 1;
@@ -64,12 +65,12 @@
                 bottom: 0;
                 left: 0;
                 width: 100%;
-
+              
                 display: flex;
                 align-items: center;
 
                 justify-content: space-between;
-                opacity: 1;
+                opacity: 0;
                 transition: opacity 0.2s ease-in;
                 padding: 1rem;
             }
@@ -98,8 +99,8 @@
                 margin-right: 1rem;
             }
 
-            #btn-play-pause:hover, #btn-shuffle:hover{
-                opacity: 0.5;
+            #btn-play-pause:hover, #btn-shuffle:hover, #volume-control:hover{
+                opacity: 0.7;
             }
 
             #volume-control {
@@ -108,13 +109,9 @@
                 gap: 2px;
                 opacity: 1;
                 transition: opacity 0.2s ease;
+                height: 2.4rem;
             }
-            #volume-control:hover {
-                opacity: 1;
-            }
-            #volume-control:hover {
-                opacity: 0.8;
-            }
+
             .square-filled {
                 width: 0.75em;
                 aspect-ratio: 1/1;
@@ -138,7 +135,13 @@
                 <section id="player-controls">
                     <button id="btn-play-pause"><svg class="icon" fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"> <path d="M10 20H8V4h2v2h2v3h2v2h2v2h-2v2h-2v3h-2v2z" fill="currentColor"/> </svg></button>
                     <button id="btn-shuffle"><svg class="icon" fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"> <path d="M3 5V3h2v2H3zm4 2H5V5h2v2zm2 2H7V7h2v2zm2 2H9V9h2v2zm2 0h-2v2h2v2h2v2h2v2h-2v2h6v-6h-2v2h-2v-2h-2v-2h-2v-2zm2-2v2h-2V9h2zm2-2v2h-2V7h2zm0-2v2h2v2h2V3h-6v2h2zM5 19v-2h2v2H5zm0 0v2H3v-2h2zm2-2v-2h2v2H7z" fill="currentColor"/> </svg></button>
-                    <div id="volume-control"></div>
+                    <div id="volume-control">
+                        <button></button>
+                        <button></button>
+                        <button></button>
+                        <button></button>
+                        <button></button>
+                    </div>
         
                 </section>
             </section>

@@ -6,6 +6,18 @@ const pauseIcon = '<svg class="icon" fill="none" xmlns="http://www.w3.org/2000/s
 
 const MAX_VOLUME = 100;
 const DEFAULT_VOLUME = 20;
+const VOLUME_STEP = 20;
+const DEBUG = true;
+
+const PlayerStates = new Map([
+    [-1, "unstarted"],
+    [0, "ended"],
+    [1, "playing"],
+    [2, "paused"],
+    [3, "buffering"],
+    [5, "video cued"],
+]);
+
 
 export default class MusicPlayer extends HTMLElement {
     static observedAttributes = ["channel", "playlist"];
@@ -31,6 +43,7 @@ export default class MusicPlayer extends HTMLElement {
     }
 
     async connectedCallback() {
+        if(DEBUG) console.log(`Connected music player element: ${this.getAttribute("channel")} ${this.getAttribute("playlist")}`);
 
         const playerContainer = this.shadowRoot.querySelector("#player-container");
         const btnPlayPause = this.shadowRoot.querySelector("#btn-play-pause");
@@ -66,7 +79,7 @@ export default class MusicPlayer extends HTMLElement {
             },
         });
 
-        this.renderVolumeControl(DEFAULT_VOLUME);
+        this.initVolumeControl(DEFAULT_VOLUME);
 
         btnPlayPause.addEventListener("click", () => {
             if (this.youTubePlayer && this.youTubePlayer.getPlayerState() === 1) {
@@ -94,14 +107,15 @@ export default class MusicPlayer extends HTMLElement {
 
     }
 
-
     attributeChangedCallback(name, oldValue, newValue) {
-        console.log(`Attribute ${name} has changed.`, oldValue, newValue);
+       if(DEBUG) console.log(`Attribute ${name} has changed from ${oldValue} to ${newValue}`);
     }
 
     handlePlayerStateChange(event) {
-        // If song is done (0)
-        if (event.data === 0) {
+        if(DEBUG) console.log(`Player state changed: ${PlayerStates.get(event.data) || event.data}`);
+
+        if (event.data === YT.PlayerState.ENDED) {
+            if(DEBUG) console.log("Song ended");
             this.pickSong();
             event.target.playVideo();
         }
@@ -113,28 +127,60 @@ export default class MusicPlayer extends HTMLElement {
         this.songTitle.textContent = song.title;
     }
 
-    renderVolumeControl(volume) {
 
-        this.volumeControl.replaceChildren();
+    /**
+     * Sets click listeners for volume control to change volume and initializes volume
+     * @param {number} volume 
+     */
+    initVolumeControl(volume) {
 
-        for (let i = 0; i < 5; ++i) {
-            const button = document.createElement("button");
+        const volumeControl =  this.shadowRoot.querySelector("#volume-control");
 
-            if ((MAX_VOLUME / 5) * (i + 1) <= volume) {
-                button.classList.add("square-filled");
-            } else {
-
-                button.classList.add("square-empty");
-            }
-
+        for (let i = 0; i < volumeControl.children.length; ++i) {
+            const button = volumeControl.children.item(i);
             button.addEventListener("click", () => {
                 const newVolume = (MAX_VOLUME / 5) * (parseInt(i) + 1);
                 const finalVolume = volume === newVolume ? volume - MAX_VOLUME / 5 : newVolume;
                 this.youTubePlayer.setVolume(finalVolume);
-                this.renderVolumeControl(finalVolume);
+                this.renderVolume(finalVolume);
             });
+        }
 
-            this.volumeControl.appendChild(button);
+        volumeControl.addEventListener("click", (e) => {
+            
+            // Calculate which volume step based on position of click inside the volume control 
+
+            const xInVolumeControl = e.x - volumeControl.getBoundingClientRect().left;
+
+            const newVolume = ((Math.floor(((xInVolumeControl / (volumeControl.clientWidth + 2)) * 100) / VOLUME_STEP)) + 1) * VOLUME_STEP;
+            const finalVolume = volume === newVolume ? volume - MAX_VOLUME / 5 : newVolume;
+
+            this.youTubePlayer.setVolume(finalVolume);
+            this.renderVolume(finalVolume);
+        });
+
+        this.renderVolume(volume);
+    }
+
+    /**
+     * Toggles classes for filled sqare or empty square to show volume.
+     * @param {number} volume 
+     */
+    renderVolume(volume) {
+
+        const volumeControl =  this.shadowRoot.querySelector("#volume-control");
+
+        for (let i = 0; i < volumeControl.children.length; ++i) {
+
+            const button = volumeControl.children.item(i);
+
+            if ((MAX_VOLUME / 5) * (i + 1) <= volume) {
+                button.classList.add("square-filled");
+                button.classList.remove("square-empty");
+            } else {
+                button.classList.add("square-empty");
+                button.classList.remove("square-filled");
+            }
         }
     }
 

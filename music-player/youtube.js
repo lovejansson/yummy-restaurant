@@ -21,8 +21,6 @@ export async function getSongs(channel, playlist) {
 
     if(playList === undefined) throw new Error("Youtube: playlist not found");
 
-    console.log(playLists)
-
     const playListItemsRes = await fetch(`${BASE_URL}/playlistItems?key=${API_KEY}&playlistId=${playList.id}&part=snippet,contentDetails&maxResults=50`);
     
     const playListItems =  await playListItemsRes.json();
