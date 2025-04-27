@@ -3,7 +3,7 @@ import MusicPlayer from "./music-player/MusicPlayer.js";
 import Table from "./Table.js";
 import EventsManager
 , { EVENT_TYPE } from "./EventManager.js";
-import { createPath, drawGrid, createGrid } from "./path.js";
+import { createPathBFS, drawGrid, createGrid, createPathAStar } from "./path.js";
 import Waitor from "./Waitor.js";
 
 const musicPlayer = document.querySelector("music-player");
@@ -18,7 +18,7 @@ const cols = 20;
 canvas.width = 64 * cols;
 canvas.height = 64 * rows;
 
-export const grid = createGrid(rows, cols);
+export const grid = createGrid(rows, cols, 0);
 
 const waitor = new Waitor("waitor1", {x: 0, y: 0}, 64, 64);
 
@@ -54,10 +54,9 @@ for(let r = 0; r < rows; ++r) {
     }
 }
 
-const path = createPath({row: 0, col: 0}, {row: 4, col: 6}, grid);
+const path = createPathAStar({row: 0, col: 0}, {row: 4, col: 6}, grid);
 ctx.fillStyle = "red";
 
-console.log(path);
 
 for (const c of path) {
     ctx.fillRect(c.col * 64, c.row * 64,  64, 64);
@@ -69,7 +68,6 @@ eventsManager.add({name: EVENT_TYPE.GUEST_ORDER_DRINK, data: {pos: {row: 4, col:
 function play() {
     waitor.update();
     waitor.draw(ctx);
-
     requestAnimationFrame(play);
 }
 

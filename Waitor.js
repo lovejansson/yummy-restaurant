@@ -99,7 +99,7 @@ class ConversationState extends State {
 
                 const receiver = ["guest1", "guest2", "guest3", "guest4"].random(); 
 
-                dialogManager.send(this.messageBubble.msg, this.id, receiver);
+                dialogManager.send(this.messageBubble.message, this.id, receiver);
 
                 this.#waitor.messageBubble.hideMessage();
 

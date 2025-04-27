@@ -9,18 +9,84 @@ import "./array.js"
 
 /** 
 * @param {Cell} cell 
+* @param {number[][]} grid
 */
-const getNeighbours = (cell, rows, cols) => {
+const getNeighbours = (cell, grid) => {
+  
+    const rows = grid.length;
+    const cols = grid[0].length;
 
-    let neighbours = [];
+    const neighbours = [];
 
     for(const [r, c] of [[-1, 0], [0, 1], [1, 0], [0, -1]]) {
         const neighbour = {row: cell.row + r, col: cell.col + c};
-
-        if(neighbour.row !== -1 && neighbour.row !== rows && neighbour.col !== -1 && neighbour.col !== cols) neighbours.push(neighbour);      
+      
+        if(neighbour.row !== -1 && neighbour.col !== -1 && neighbour.row !== rows -1 && neighbour.col !== cols -1 && grid[neighbour.row][neighbour.col] === 0) neighbours.push(neighbour);     
     }
 
     return neighbours;
+}
+
+/**
+ * 
+ * Creates the closest path in the grid using Breadth first search algorithm (BFS)
+ *  
+ * @param {Cell} start 
+ * @param {Cell} end
+ * @param {number[][]} grid each cell stores either 1 or 0, depending on if it is a walkable cell or not.
+ * @returns {Cell[]} path, array of grid cells 
+ * 
+ */
+function createPathBFS(start, end, grid) {
+
+    const rows = grid.length;
+    const cols = grid.length[0];
+    
+    const reconstructPath = (pathMap) => {
+
+        let curr = end;
+
+        let path = [end];
+        console.log(pathMap)
+        
+        while (!(curr.row === start.row && curr.col === start.col)) {
+          
+            curr = pathMap[curr.row][curr.col];
+            path.push(curr);
+        }
+
+        return path.reverse();
+    }
+
+    const visited = createGrid(rows, cols, false);
+    const path = createGrid(rows, cols);
+    const queue = []; 
+
+    let curr;
+
+    queue.push(start);
+    path[start.row][start.col] = null;
+    visited[start.row][start.col] = true;
+
+    while (queue.length > 0) {
+
+      curr = queue.shift();
+
+      for (const n of getNeighbours(curr, grid)) {
+
+        if (n.row === end.row && n.col === end.col) {
+            path[n.row][n.col] = curr;
+            break;
+
+        } else if (!visited[n.row][n.col]) {
+            queue.push(n);
+            path[n.row][n.col] = curr;
+            visited[n.row][n.col] = curr;
+        }
+      }
+    }
+
+    return reconstructPath(path);
 }
 
 /**
@@ -28,12 +94,14 @@ const getNeighbours = (cell, rows, cols) => {
  *  
  * @param {Cell} start 
  * @param {Cell} end
- * @param {any[][]} grid 
+ * @param {any[][]} grid ()
  * @returns {Cell[]} path, array of grid cells 
  * 
  */
-function createPath(start, end, grid) {
-    if(grid[end.row][end.col] === 1) throw new Error("End cell is a non walkable cell")
+function createPathAStar(start, end, grid) {
+
+    if(grid[start.row][end.row] === 1 || grid[end.row][end.col] === 1) throw new Error("Start cell is a non walkable cell.");
+    if(grid[end.row][end.col] === 1) throw new Error("End cell is a non walkable cell.");
 
     const rows = grid.length;
     const cols = grid[0].length;
@@ -43,7 +111,7 @@ function createPath(start, end, grid) {
     const reconstructPath = (pathMap) => {
 
         let curr = end;
-    
+
         let path = [end];
 
         while (!(curr.row === start.row && curr.col === start.col)) {
@@ -84,7 +152,7 @@ function createPath(start, end, grid) {
         // We reached the end cell
         if(curr.row === end.row && curr.col === end.col) break;
         
-        const neighbours = getNeighbours(curr, grid.length, grid[0].length);
+        const neighbours = getNeighbours(curr, grid);
 
         const g = scoresMap[curr.row][curr.col] + 1; 
 
@@ -168,4 +236,4 @@ function drawGrid(ctx, rows, cols, cellSize, strokeColor = "black", fillColor = 
     ctx.stroke();
 }
 
-export {drawGrid, createGrid, createPath};
+export {drawGrid, createGrid, createPathAStar, createPathBFS};

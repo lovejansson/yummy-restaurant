@@ -1,4 +1,4 @@
-import { createPath } from "./path.js";
+import { createPathAStar, createPathBFS } from "./path.js";
 import { grid } from "./index.js";
 
 
@@ -18,7 +18,7 @@ export class WalkPath {
 
     constructor(start, end){
  
-        this.#path = createPath(start, end, grid);
+        this.#path = createPathAStar(start, end, grid);
         this.#currPos = {x: start.col * 64, y: start.row * 64};
         this.#currPixelDiff = 0;
         this.#currCellIdx = 0;
