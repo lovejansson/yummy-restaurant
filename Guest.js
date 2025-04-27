@@ -1,6 +1,6 @@
-import MessagesManager, { phrases } from "./message.js";
+import DialogManager, { phrases } from "./message.js";
 
-const messagesManager = MessagesManager.GetInstance();
+const messagesManager = DialogManager.GetInstance();
 
 class State {
     update(guest) {

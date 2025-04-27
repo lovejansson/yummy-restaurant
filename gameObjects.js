@@ -40,7 +40,6 @@ class GameObject {
 }
 
 
-
 export class StaticImage extends GameObject {
 
     /**
@@ -77,14 +76,11 @@ export class Sprite extends GameObject {
     }
 
     update() {
-        throw new NotImplementedError("Sprite", "update")
+        throw new NotImplementedError("Sprite", "update");
     }
 
-    /**
-     * @param {CanvasRenderingContext2D} ctx 
-     */
-    draw(ctx) {
-        throw new NotImplementedError("Sprite", "draw")
+    draw(_) {
+        throw new NotImplementedError("Sprite", "draw");
     }
 }
 

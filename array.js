@@ -7,3 +7,8 @@ Array.prototype.random = function() {
     const randomIdx = Math.floor(Math.random() * this.length);
     return this[randomIdx];
 }
+
+Array.prototype.remove = function(el) {
+    const idx = this.indexOf(el);
+    this.splice(idx, 1);
+}

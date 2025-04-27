@@ -1,10 +1,6 @@
-
-
-
-
 /**
  * @typedef RestaurantEvent 
- * @property {number} string
+ * @property {number} name
  * @property {any} data
  */
 
@@ -57,7 +53,7 @@ export default class EventsManager {
      * @param {RestaurantEvent} event 
      */
     add(event) {
-        if(!Object.values(EVENT_TYPE).has(event.name)) throw new InvalidEvent(event.name);
+        if(!Object.values(EVENT_TYPE).includes(event.name)) throw new InvalidEvent(event.name);
         this.#events.push(event);
     }
 

@@ -22,8 +22,9 @@ export const phrases = {
      * @returns string - A random phrase for taking an order.
      */
     takingOrder: (orderType) => {
+
         const phrases = {
-            drinks: [
+            drink: [
                 "Welcome! What would you like to drink?",
                 "Hi there! Can I get you started with something to drink?",
                 "Hello! Would you like to order a drink first?",
@@ -45,6 +46,28 @@ export const phrases = {
     
         return phrases[orderType]?.random() || "How can I assist you today?";
     },
+
+    welcomeGuest: (numberOfGuests) => (["Welcome to The Yummy Restaurant!", "Welcome!"].random()),
+
+    placeOrder: () => (["Another order coming up!",
+        "Order's in!",
+        "Got another one for you!",
+        "Here’s the next order!",
+        "Order coming through!",
+        "Sending this one your way!",
+        "Got an order for you!",
+        "This one’s ready to go!"].random()),
+
+    orderReady: (meal, table) => ([
+        `Two ${meal} for table ${table}!`,
+        `${meal} is ready for table ${table}!`,
+        `Order up! ${meal} for table ${table}!`,
+        `Table ${table}, your ${meal} is ready!`,
+        `Kitchen says: ${meal} for table ${table}!`,
+        `Order ready: ${meal} for table ${table}!`,
+        `Table ${table}, come get your ${meal}!`,
+        `Hot and fresh: ${meal} for table ${table}!`,
+    ]).random(),
 
     /**
      * @param {string} orderType 
@@ -74,6 +97,8 @@ export const phrases = {
 
         return phrases[orderType]?.random() || "Here you go!";
     },
+
+    guestHasQuestion: "Hello, how can I help you?",
 
     foodComments: [
         "This looks amazing!",
@@ -127,7 +152,7 @@ export const phrases = {
 
 
 
-export default class MessagesManager {
+export class DialogManager {
 
     /**
      * @type {Map<string, {message: string, from: string}>}
@@ -136,7 +161,7 @@ export default class MessagesManager {
     messages;
 
     /**
-     * @type {MessagesManager}
+     * @type {DialogManager}
      * @private
      */
     instance;
@@ -209,6 +234,7 @@ export class MessageBubble {
     }
 
     showMessage(message, duration = 2000) {
+        console.log(message);
         this.message = message;
 
         setTimeout(() => {

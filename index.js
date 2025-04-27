@@ -2,7 +2,9 @@
 import MusicPlayer from "./music-player/MusicPlayer.js";
 import Table from "./Table.js";
 import EventsManager
- from "./EventManager.js";
+, { EVENT_TYPE } from "./EventManager.js";
+import { createPath, drawGrid, createGrid } from "./path.js";
+import Waitor from "./Waitor.js";
 
 const musicPlayer = document.querySelector("music-player");
 
@@ -10,14 +12,68 @@ const canvas = document.querySelector("canvas");
 
 const ctx = canvas.getContext("2d");
 
-musicPlayer.addEventListener("ready", () => {
-    console.log("LOADED MUSIC PLAYER")
-});
+const rows = 10;
+const cols = 20;
 
-const table = new Table({x: 50, y: 50}, 25, 25);
+canvas.width = 64 * cols;
+canvas.height = 64 * rows;
 
-table.draw(ctx);
+export const grid = createGrid(rows, cols);
 
+const waitor = new Waitor("waitor1", {x: 0, y: 0}, 64, 64);
+
+drawGrid(ctx, rows, cols, 64)
+
+const table = (row, col) => {
+    const cells = [];
+    for(let r = 0; r < 2; ++r) {
+        for(let c = 0; c < 2; ++c) {
+            cells.push({row: r + row, col: c + col});
+        }
+    } 
+
+    return cells;
+}
+
+
+
+const tableCells = [
+   ...table(1, 1), ...table(1, 6),
+   ...table(6, 1), ...table(6, 6)
+];
+
+
+ctx.fillStyle = "black";
+
+for(let r = 0; r < rows; ++r) {
+    for(let c = 0; c < cols; ++c) {
+        if(tableCells.find((tC) => tC.row == r && tC.col == c) !== undefined) {
+            ctx.fillRect(c * 64, r * 64,  64, 64);
+            grid[r][c] = 1;
+        }
+    }
+}
+
+const path = createPath({row: 0, col: 0}, {row: 4, col: 6}, grid);
+ctx.fillStyle = "red";
+
+console.log(path);
+
+for (const c of path) {
+    ctx.fillRect(c.col * 64, c.row * 64,  64, 64);
+}
+
+const eventsManager = EventsManager.GetInstance();
+eventsManager.add({name: EVENT_TYPE.GUEST_ORDER_DRINK, data: {pos: {row: 4, col: 6}}})
+
+function play() {
+    waitor.update();
+    waitor.draw(ctx);
+
+    requestAnimationFrame(play);
+}
+
+play();
 
 
 /**
@@ -35,7 +91,7 @@ table.draw(ctx);
  * WalkingToGuestWithOrder
  * 
  * WalkingToGuest -> Walks to guest at some position when there is a guest that 'needs something' (Hur ska det statet skötas?)
- * 
+ * s
  * WalkingToArrivingGuest
  * 
  * WalkingToTable to escort Guest there

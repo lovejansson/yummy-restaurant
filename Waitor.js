@@ -1,9 +1,12 @@
-import EventsManager, {EVENT_TYPE, RestaurantEvent} from "./EventManager.js";
-import MessagesManager, { phrases } from "./message.js";
-import MessageBubble from "./MessageBubble.js";
+import EventsManager, { EVENT_TYPE,  } from "./EventManager.js";
+import  { phrases,DialogManager } from "./message.js";
+import { MessageBubble } from "./message.js";
+import { Sprite } from "./gameObjects.js";
+import { WalkPath } from "./WalkPath.js";
 
-const messagesManager = MessagesManager.GetInstance();
+const dialogManager = DialogManager.GetInstance();
 const eventsManager = EventsManager.GetInstance();
+
 
 class State {
     update(guest) {
@@ -12,7 +15,7 @@ class State {
 }
 
 
-class TalkState extends State {
+class ConversationState extends State {
 
     static DialogType = {
         GUEST_ORDER_DRINK: 0,
@@ -21,69 +24,108 @@ class TalkState extends State {
         GUEST_BILL: 3,
         GUEST_TABLE: 4,
         GUEST_ARRIVE: 5,
-        CHEF_ORDER_READY: 6,
+        PLACE_ORDER: 6,
+        CHEF_ORDER_READY: 7,
     };
 
-    hasStartedConversation = false;
+    #hasStartedConversation;
 
-    hasSentLastMessage = false;
+    #hasSentLastMessage;
+
+    #waitor;
+
+    #dialogType;
 
     /**
-     * @param {OrderType} type
+     * @param {ConversationState.DialogType} dialogType
      */
-    constructor(type) {
-        this.type = type;
+    constructor(waitor, dialogType) {
+        super();
+        this.#dialogType = dialogType;
+        this.#hasSentLastMessage = false;
+        this.#hasStartedConversation = false;
+        this.#waitor = waitor;
     }
 
-    /**
-     * @param {Waitor} waitor
-     */
-    update(waitor) {
 
-        if(!hasStartedConversation) {
-            // Start conversation by showing the message bubble for the waitor. 
-            waitor.messageBubble.showMessage(phrases.greeting.random() + " " + phrases.askDrink.random());
+    update() {
+
+        // All conversations are 3 messages long, the waitor says something to the guest, the guest responds and then the waitor has final word! easy peasy
+
+        if (!this.#hasStartedConversation) {
+
+            // Start conversation by saying the first phrase!
+            console.log(this.#dialogType,ConversationState.DialogType.GUEST_ORDER_DRINK)
+            switch (this.#dialogType) {
+                case ConversationState.DialogType.GUEST_ORDER_DRINK:
+                    this.#waitor.messageBubble.showMessage(phrases.takingOrder("drink"));
+                    break;
+                case ConversationState.DialogType.GUEST_ORDER_FOOD:
+                    this.#waitor.messageBubble.showMessage(phrases.takingOrder("food"));
+                    break;
+                case ConversationState.DialogType.GUEST_ORDER_DESSERT:
+                    this.#waitor.messageBubble.showMessage(phrases.takingOrder("dessert"));
+                    break;
+                case ConversationState.DialogType.GUEST_BILL:
+                    this.#waitor.messageBubble.showMessage(phrases.guestHasQuestion);
+                    break;
+                case ConversationState.DialogType.GUEST_TABLE:
+                    this.#waitor.messageBubble.showMessage(phrases.guestHasQuestion);
+                    break;
+                case ConversationState.DialogType.GUEST_ARRIVE:
+                    this.#waitor.messageBubble.showMessage(phrases.welcomeGuest());
+                    break;
+                case ConversationState.DialogType.PLACE_ORDER:
+                    this.#waitor.messageBubble.showMessage(phrases.placeOrder());
+                    break;
+                case ConversationState.DialogType.CHEF_ORDER_READY: 
+                    this.#waitor.messageBubble.showMessage(phrases.greeting.random() + "\n" + phrases.askDrink.random());
+                    break;
+                default:
+                    console.log("Unknown dialog type.");
+                    break;
+            }
+
+            this.#hasStartedConversation = true;
             return;
         }
 
-        if(waitor.messageBubble.isShowing()) {
+        if (this.#waitor.messageBubble.isShowing()) {
+            console.log("MESSAGE IS SHOWING");
+            if (this.#waitor.messageBubble.shouldHide()) {
+                console.log("SENDING THE MESSAGE TO GUEST");
 
-            if(waitor.messageBubble.shouldHide()){  
-                const receiver = ["guest1", "guest2", "guest3", "guest4"].random(); // Ta ut ids för de gäster som är i närheten av waitorn. 
+                // Ta ut ids för de gäster som är i närheten av waitorn. 
+
+                const receiver = ["guest1", "guest2", "guest3", "guest4"].random(); 
+
                 dialogManager.send(this.messageBubble.msg, this.id, receiver);
-                this.messageBubble.hideMessage();
 
-                if(this.hasSentLastMessage) {
-                   // set new state for waitor, since the conversation is done. 
+                this.#waitor.messageBubble.hideMessage();
 
-                    switch (dialogType) {
-                        case TalkState.DialogType.GUEST_ORDER_DRINK:
-                            // GO to kitchen with note
-                            console.log("Handling guest order for a drink.");
+                if (this.#hasSentLastMessage) {
+
+                    switch (this.#dialogType) { 
+
+                        case ConversationState.DialogType.GUEST_ORDER_DRINK:
+                        case ConversationState.DialogType.GUEST_ORDER_FOOD:
+                        case ConversationState.DialogType.GUEST_ORDER_DESSERT:
+                            this.#waitor.state = new WalkState(this.#waitor, {row: 0, col: 0}, WalkState.GOAL.PLACE_ORDER);
                             break;
-                        case TalkState.DialogType.GUEST_ORDER_FOOD:
-                            // GO to kitchen with note
-                            console.log("Handling guest order for food.");
+                        case ConversationState.DialogType.GUEST_BILL:
+                            this.#waitor.state = new WalkState(this.#waitor, {row: 0, col: 0}, WalkState.GOAL.IDLE_SPOT);
                             break;
-                        case TalkState.DialogType.GUEST_ORDER_DESSERT:
-                            // GO to kitchen with note
-                            console.log("Handling guest order for dessert.");
+                        case ConversationState.DialogType.GUEST_TABLE:
+                            this.#waitor.state = new WalkState(this.#waitor, {row: 0, col: 0}, WalkState.GOAL.GUEST_TABLE);
                             break;
-                        case TalkState.DialogType.GUEST_BILL:
-                            // Go to idle spot
-                            console.log("Handling guest bill.");
+                        case ConversationState.DialogType.GUEST_ARRIVE:
+                            this.#waitor.state = new WalkState(this.#waitor, {row: 0, col: 0}, WalkState.GOAL.GUEST_ARRIVE);
                             break;
-                        case TalkState.DialogType.GUEST_TABLE:
-                            // Go to idle spot
-                            console.log("Handling guest table assignment.");
-                            break;
-                        case TalkState.DialogType.GUEST_ARRIVE:
-                            // Go to vacant table
-                            console.log("Handling guest arrival.");
-                            break;
-                        case TalkState.DialogType.CHEF_ORDER_READY:
-                            // GO to guest table with order
-                            console.log("Handling chef's order ready notification.");
+                        case ConversationState.DialogType.PLACE_ORDER:
+                            this.#waitor.state = new WalkState(this.#waitor, {row: 0, col: 0}, WalkState.GOAL.IDLE_SPOT);
+                        break;
+                        case ConversationState.DialogType.CHEF_ORDER_READY:
+                            this.#waitor.state = new WalkState(this.#waitor, {row: 0, col: 0}, WalkState.GOAL.GUEST_TABLE);
                             break;
                         default:
                             console.log("Unknown dialog type.");
@@ -93,19 +135,14 @@ class TalkState extends State {
             }
 
         } else {
-
+            console.log("WAITING FOR GUEST TO ANSWER");
             // Check if guest has answered.
-            const message = dialogManager.receive(waitor.id);
+            const message = dialogManager.receive(this.#waitor.id);
 
-            if(message !== undefined) {
-
-                // Om det finns gäster kvar:
-                // Visa message bubble med "..." för när waitor skriver ned. (Betyder jag skriver ned din beställning och sen när det är klart så kolllar jag på 
-                //  nästa gäst)
-                // Annarrs visa meddelande osm säger att beställningen är tagen och kommer snart.
-              
-                // Has all guests answered? - If so, show last message bubble saying that the order is taken and will arrive soon.
-                hasSentLastMessage = true;
+            if (message !== undefined) {
+                // When message is received again, the waitor shows the last message in the message bubble
+                console.log("Guest answered");
+                this.#hasSentLastMessage = true;
             }
         }
     }
@@ -113,69 +150,76 @@ class TalkState extends State {
 
 class WalkState extends State {
 
-    static WALK_GOAL = {...EVENT_TYPE, GUEST_TABLE: "guest-table", PLACE_ORDER: "place-order"}
+    static GOAL = {...EVENT_TYPE, GUEST_TABLE: "guest-table", PLACE_ORDER: "place-order", IDLE_SPOT: "idle-spot" }
+
     /**
      * @type {Waitor}
      */
     #waitor;
 
     /**
-     * @type {{x: number, y: number}}
+     * 
+     * @type {WalkPath}
      */
-    #goalPos;
+    #walkPath;
+
 
     /**
-     * @type {WALK_GOAL}
+     * @type {GOAL}
      */
-    #goalType;
+    #goal;
 
-    constructor(waitor, goalPos, goalType) {
+
+    /**
+     * @param {Waitor} waitor 
+     * @param {Cell} goalCell 
+     * @param {GOAL} goal 
+     */
+    constructor(waitor, goalCell, goal) {
+        super();
         this.#waitor = waitor;
-        this.#goalPos = goalPos;
-        this.#goalType = goalType;
+        this.#goal = goal;
+        this.#walkPath = new WalkPath(waitor.getGridCellPosition(), goalCell);
     }
 
+
     update() {
-
-        if(this.hasReachedGoal()) {
-
-            switch(this.#goalType) {
-                case WALK_GOAL.GUEST_ARRIVE:
-                    this.#waitor.state = new TalkState(TalkState.DialogType.GUEST_ARRIVE);
+   
+        if(this.#walkPath.hasReachedGoal) {
+            switch (this.#goal) { 
+                case WalkState.GOAL.GUEST_ARRIVE:
+                    this.#waitor.state = new ConversationState(this.#waitor, ConversationState.DialogType.GUEST_ARRIVE);
                     break;
-                case WALK_GOAL.GUEST_ORDER_DRINK:
-                    this.#waitor.state = new TalkState(TalkState.DialogType.GUEST_ORDER_DRINK);
+                case WalkState.GOAL.GUEST_ORDER_DRINK:
+                    this.#waitor.state = new ConversationState(this.#waitor, ConversationState.DialogType.GUEST_ORDER_DRINK);
                     break;
-                case WALK_GOAL.GUEST_ORDER_FOOD:
-                    this.#waitor.state  = new TalkState(TalkState.DialogType.GUEST_ORDER_FOOD);
+                case WalkState.GOAL.GUEST_ORDER_FOOD:
+                    this.#waitor.state = new ConversationState(this.#waitor, ConversationState.DialogType.GUEST_ORDER_FOOD);
                     break;
-                case WALK_GOAL.GUEST_ORDER_DESSERT:
-                    this.#waitor.state  = new TalkState(TalkState.DialogType.GUEST_ORDER_DESSERT);
+                case WalkState.GOAL.GUEST_ORDER_DESSERT:
+                    this.#waitor.state = new ConversationState(this.#waitor, ConversationState.DialogType.GUEST_ORDER_DESSERT);
                     break;
-                case WALK_GOAL.GUEST_BILL:
-                    this.#waitor.state  = new TalkState(TalkState.DialogType.GUEST_BILL);
+                case WalkState.GOAL.GUEST_BILL:
+                    this.#waitor.state = new ConversationState(this.#waitor, ConversationState.DialogType.GUEST_BILL);
                     break;
-                case WALK_GOAL.ORDER_READY:
-                    this.#waitor.state = new TalkState(TalkState.DialogType.ORDER_READY);                   
+                case WalkState.GOAL.ORDER_READY:
+                    this.#waitor.state = new ConversationState(this.#waitor, ConversationState.DialogType.ORDER_READY);
                     break;
-                case WALK_GOAL.GUEST_TABLE:
-                    this.#waitor.state = new TalkState(TalkState.DialogType.GUEST_TABLE); 
+                case WalkState.GOAL.GUEST_TABLE:
+                    this.#waitor.state = new ConversationState(this.#waitor, ConversationState.DialogType.GUEST_TABLE);
                     break;
-                case WALK_GOAL.PLACE_ORDER:
-                    // Idle state ? go to idle state
+                case WalkState.GOAL.PLACE_ORDER:
+                    this.#waitor.state = new ConversationState(this.#waitor, ConversationState.DialogType.PLACE_ORDER);
                     break;
             }
 
         } else {
-                // update position and update walk animation
+            this.#walkPath.update();
+            const pos = this.#walkPath.getPositionXY();
+            this.#waitor.pos.x = pos.x;
+            this.#waitor.pos.y = pos.y;
         }
     }
-
-
-    hasReachedGoal() {
-        return this.#goalPos.x === this.#waitor.pos.x && this.goalPos.y === this.#waitor.pos.y;
-    }
-    
 }
 
 
@@ -185,26 +229,36 @@ class IdleState extends State {
      * @type {Waitor}
      */
     #waitor;
+
     constructor(waitor) {
+        super();
         this.#waitor = waitor;
     }
 
     update() {
+
+        // When idle, the waitor waits for a restaurant event to happen and if so they take action, otherwise they just stand somewhere.
+
         const event = eventsManager.next();
 
-        if(event !== undefined) {
+        console.log("EVENT ", event);
+
+        if (event !== undefined) {
             this.#waitor.state = new WalkState(this.#waitor, event.data.pos, event.name);
         } else {
-            // Randomly say stuff if someone is next to them
+
+            if (!this.#waitor.isSayingSomething() && Math.random() > 0.75) {
+                this.#waitor.say(phrases.musicComments.random());
+            }
         }
     }
 }
 
-export default class Waitor {
+
+export default class Waitor extends Sprite {
 
     /**
      * @type {MessageBubble}
-     * @private 
      */
     messageBubble;
 
@@ -213,13 +267,46 @@ export default class Waitor {
      */
     state;
 
-    constructor(id) {
+
+    constructor(id, pos, width, height) {
+        super(pos, width, height);
         this.id = id;
         this.messageBubble = new MessageBubble();
+        this.state = new IdleState(this);
+    }
+
+
+    getGridCellPosition() {
+        return {row: this.pos.y / this.height, col: this.pos.x / this.width}
     }
 
     update() {
-      this.state.update(this);
+        this.state.update(this);
+    }
+
+    /**
+     * Shows the message bubble with message.
+     * @param {string} message 
+     */
+    say(message) {
+        this.messageBubble.showMessage(message);
+    }
+
+    /**
+     * Checks if the message bubble is showing, i.e. if the waitor is saying something.
+     * @return {boolean}
+     */
+    isSayingSomething() {
+        return this.messageBubble.isShowing();
+    }
+
+    /**
+     * 
+     * @param {CanvasRenderingContext2D} ctx 
+     */
+    draw(ctx) {
+        ctx.fillStyle = "blue";
+        ctx.fillRect(this.pos.x, this.pos.y, 64, 64);
     }
 
 }

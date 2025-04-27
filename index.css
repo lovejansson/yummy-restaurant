@@ -5,6 +5,16 @@ html, body, main
     background-color: #f0f0f0;
 }
 
+html {
+    font-size: 10px;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+
+}
+
 button {
     cursor: pointer;
     background: none;
@@ -14,13 +24,9 @@ button {
     display: flex;
     align-items: center;
     justify-content: center;
-
     outline: none;
 }
 
-html {
-    font-size: 10px;
-}
 
 * {
     margin: 0;
@@ -29,9 +35,18 @@ html {
     font-family: Consolas;
 }
 
+canvas {
+    position: absolute;
+    width: 100%;
+}
 
 #canvas-container {
-    width: 1000px;
+    position: relative;
+    width: 75%;
+    height: auto;
+    background-color: beige;
+    aspect-ratio: 1280  / 640;
     margin: auto;
+ 
 }
 
