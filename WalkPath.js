@@ -1,5 +1,5 @@
 import { createPathAStar, createPathBFS } from "./path.js";
-import { grid } from "./index.js";
+import { grid } from "./PlayScreen.js";
 
 
 /**
@@ -19,7 +19,7 @@ export class WalkPath {
     constructor(start, end){
  
         this.#path = createPathAStar(start, end, grid);
-        this.#currPos = {x: start.col * 64, y: start.row * 64};
+        this.#currPos = {x: start.col * 16, y: start.row * 16};
         this.#currPixelDiff = 0;
         this.#currCellIdx = 0;
     }
@@ -29,7 +29,7 @@ export class WalkPath {
  
         this.#updatePosition();
 
-        if (this.#currPixelDiff === 64) {
+        if (this.#currPixelDiff === 16) {
             this.#updateNextCell();
             this.#currPixelDiff = 0;
         } 

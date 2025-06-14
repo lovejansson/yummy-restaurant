@@ -1,7 +1,7 @@
 import EventsManager, { EVENT_TYPE,  } from "./EventManager.js";
 import  { phrases,DialogManager } from "./message.js";
 import { MessageBubble } from "./message.js";
-import { Sprite } from "./gameObjects.js";
+import { Sprite } from "./lib/index.js";
 import { WalkPath } from "./WalkPath.js";
 
 const dialogManager = DialogManager.GetInstance();
@@ -255,7 +255,7 @@ class IdleState extends State {
 }
 
 
-export default class Waitor extends Sprite {
+export default class Waiter extends Sprite {
 
     /**
      * @type {MessageBubble}
@@ -306,7 +306,7 @@ export default class Waitor extends Sprite {
      */
     draw(ctx) {
         ctx.fillStyle = "blue";
-        ctx.fillRect(this.pos.x, this.pos.y, 64, 64);
+        ctx.fillRect(this.pos.x, this.pos.y, 16, 16);
     }
 
 }

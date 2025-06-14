@@ -38,6 +38,7 @@ button {
 canvas {
     position: absolute;
     width: 100%;
+    image-rendering: pixelated;
 }
 
 #canvas-container {
@@ -45,7 +46,7 @@ canvas {
     width: 75%;
     height: auto;
     background-color: beige;
-    aspect-ratio: 1280  / 640;
+    aspect-ratio: 320 / 226;
     margin: auto;
  
 }

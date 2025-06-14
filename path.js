@@ -219,17 +219,20 @@ function drawGrid(ctx, rows, cols, cellSize, strokeColor = "black", fillColor = 
 
     ctx.beginPath();
 
+   
     ctx.strokeStyle = strokeColor;
     ctx.fillStyle = fillColor;
+
+    const translateOffset = 0;
 
     for(let r = 0; r < rows; ++r) {
         for (let c = 0; c < cols; ++c) {
 
-            ctx.moveTo(c * cellSize, r * cellSize);
-            ctx.lineTo((c + 1) * cellSize, r * cellSize);
-            ctx.lineTo((c + 1) * cellSize,(r + 1) * cellSize);
-            ctx.lineTo(c * cellSize, (r + 1) * cellSize);
-            ctx.lineTo(c * cellSize,  r * cellSize);
+            ctx.moveTo(c * cellSize - translateOffset, r * cellSize - translateOffset);
+            ctx.lineTo((c + 1) * cellSize - translateOffset, r * cellSize - translateOffset);
+            ctx.lineTo((c + 1) * cellSize - translateOffset,(r + 1) * cellSize - translateOffset);
+            ctx.lineTo(c * cellSize - translateOffset, (r + 1) * cellSize - translateOffset);
+            ctx.lineTo(c * cellSize - translateOffset,  r * cellSize - translateOffset);
         }
     }
 

@@ -55,7 +55,7 @@ class OrderState extends State {
     }
 }
 
-export default class Guest {
+export default class Guest extends Sprite {
     /**
      * @type {State}
      */
