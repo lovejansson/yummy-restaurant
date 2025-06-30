@@ -17,7 +17,7 @@
  * @type {Menu}
  */
 export const menu = {
-    drinks: [
+    drink: [
         { name: "Milk", price: 1.0 },
         { name: "Corn Silk Ice Tea", price: 2.0 },
         { name: "Coca-Cola Zero", price: 2.0 },

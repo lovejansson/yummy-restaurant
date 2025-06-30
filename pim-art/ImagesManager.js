@@ -2,27 +2,26 @@ export default class ImagesManager {
 
     /**
      * @type {Map<string, HTMLImageElement>}
-     * @description A map that stores images, where the key is the image name and the value is the corresponding HTMLImageElement.
      */
-    images;
+    #images;
 
     /**
      * @type {Map<string, string>}
-     * @description A map that stores the paths of images, where the key is the image name and the value is the path.
      */
     #paths;
 
 
     constructor() {
-        this.images = new Map();
+        this.#images = new Map();
         this.#paths = new Map();
     }
 
     /**
      * Adds an image.
+     * Loaded with the `load` method.
      * 
-     * @param {string} name The name of the image.
-     * @param {string} path The path for the image.
+     * @param {string} name
+     * @param {string} path 
      */
     add(name, path) {
         this.#paths.set(name, path);
@@ -31,7 +30,7 @@ export default class ImagesManager {
     /**
      * Loads all images that have been added. Each added image will be fetched from its path.
      * 
-     * @returns {Promise<void>} A promise that resolves once all images are successfully loaded.
+     * @returns {Promise<void>}
      */
     async load() {
         /**
@@ -59,7 +58,12 @@ export default class ImagesManager {
 
         try {
             const loadedimages = await Promise.all(loadPromises);
-            this.images = new Map(loadedimages);
+
+            for(const [name, image] of loadedimages) {
+                this.#images.set(name, image);
+            }
+
+            this.#paths.clear(); 
         } catch (e) {
             throw e;
         }
@@ -73,7 +77,7 @@ export default class ImagesManager {
      * @throws {ImageNotLoadedError} Throws an error if the image has not been loaded.
      */
     get(name) {
-        const image = this.images.get(name);
+        const image = this.#images.get(name);
 
         if (!image) throw new ImageNotLoadedError(name);
 
@@ -81,9 +85,7 @@ export default class ImagesManager {
     }
 }
 
-/**
- * Custom error thrown when an image is requested but has not been loaded.
- */
+
 class ImageNotLoadedError extends Error {
     /**
      * @param {string} imageName The name of the image that was not loaded.
@@ -93,9 +95,7 @@ class ImageNotLoadedError extends Error {
     }
 }
 
-/**
- * Custom error thrown when there is a failure to load an image.
- */
+
 class LoadimageError extends Error {
     /**
      * @param {string} name The name of the image that failed to load.

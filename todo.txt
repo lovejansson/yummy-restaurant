@@ -1,9 +1,16 @@
- Gör i ordning
 
- 
- - Rita alla gäster i olika versioner gå i 4 directions och sen sitta ned i 4 directions. 
- 
- - Rita alla waitors, Gå i 4 directions utan att de håller i någonting + att de hålller i en bricka med mat eller tallrik.
+- Rita gäster
 
- - Sätta ihop allt med en waitor som tar emot ett par gäster och agerar utifrån alla events som finns att välja mellan. 
- - Finally sätta ihop allt med flera gäster/waitors och skapa logik som randomly får restaurangen att rulla.  
+    - Det kommer vara runt 18 stycken som är där åt gången 12 - 18, satsa på 9 * 4 totalt ? 36
+    - Gäst som sitter.
+    - Gäst som äter.
+    - Gäst som dricker. 
+    - Gäst som sätter sig ned i 4 riktningar. 
+    - Gäst som reser sig upp i 4 riktningar. 
+
+- Programmera
+
+- paths which are diagonal
+- sprite walk diagonal
+- del av pim som ska kunna integrera en key listener i libbet för testning av sprite mechanics
+

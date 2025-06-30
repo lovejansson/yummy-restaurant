@@ -1,53 +1,36 @@
-html, body, main
-{
-    height: 100%;
-    width: 100%;
-    background-color: #f0f0f0;
-}
-
 html {
     font-size: 10px;
 }
 
-body {
-    display: flex;
-    flex-direction: column;
-
+html, body {
+    height: 100%;
+    width: 100%;
 }
-
-button {
-    cursor: pointer;
-    background: none;
-    border: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    outline: none;
-}
-
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: Consolas;
+
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    background: black;
+}
+
+#canvas-container {
+    position: relative;
+    width: auto;
+    height: 100%;
+    aspect-ratio: 400 / 225;
+    margin: auto;
 }
 
 canvas {
     position: absolute;
     width: 100%;
     image-rendering: pixelated;
-}
-
-#canvas-container {
-    position: relative;
-    width: 75%;
-    height: auto;
-    background-color: beige;
-    aspect-ratio: 320 / 226;
-    margin: auto;
- 
 }
 

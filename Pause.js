@@ -1,20 +1,20 @@
-import { Screen, StaticImage } from "./lib/index.js";
+import { Scene, StaticImage } from "./pim-art/index.js";
+import { BASE_URL } from "./config.js";
 
-
-export default class Pause extends Screen {
+export default class Pause extends Scene {
     constructor() {
         super();
-        this.art = null; // Will be set by the Art class
     }
 
-    update() {
+    async init() {
+        this.art.images.add("thumbnail", `${BASE_URL}images/background.png`);
+        await this.art.images.load();
+        this.image = new StaticImage(this, Symbol("pause-image"), {x: 0, y: 0}, 320, 226, "thumbnail");
+        this.isInitialized = true;
     }
 
     draw(ctx) {
-        ctx.clearRect(0, 0, this.art.config.width, this.art.config.height);
-
-        const background = new StaticImage(this, {x: 0, y: 0}, 320, 226, "static");
-        background.draw(ctx);
+        this.image.draw(ctx);
     }
     
 }

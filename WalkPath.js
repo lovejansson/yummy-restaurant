@@ -1,12 +1,11 @@
-import { createPathAStar, createPathBFS } from "./path.js";
-import { grid } from "./PlayScreen.js";
+import { createPathAStar } from "./path.js";
 
 
 /**
  * A path that a sprite can walk on. Handles creation of path on the grid and updating of position (x,y).
  * You need to create a new instance whenever a sprite should walk on a path. 
  */
-export class WalkPath {
+export class WalkPath extends EventTarget {
 
     hasReachedGoal;
 
@@ -16,24 +15,25 @@ export class WalkPath {
     #currCellIdx;
 
 
-    constructor(start, end){
- 
-        this.#path = createPathAStar(start, end, grid);
+    constructor(sprite, start, end){
+        super();
+        console.log(start, end, sprite.scene.grid)
+        this.#path = createPathAStar(start, end, sprite.scene.grid);
         this.#currPos = {x: start.col * 16, y: start.row * 16};
         this.#currPixelDiff = 0;
         this.#currCellIdx = 0;
+
+        
     }
 
-
     update() {
- 
         this.#updatePosition();
 
         if (this.#currPixelDiff === 16) {
+            this.dispatchEvent(new CustomEvent("next-cell", {detail: {index: this.#currCellIdx}}));
             this.#updateNextCell();
             this.#currPixelDiff = 0;
         } 
-
     }
 
 
@@ -105,6 +105,4 @@ export class WalkPath {
         
         return "north";
     }
-   
-
 }

@@ -1,24 +1,24 @@
-import AnimationManager  from "../AnimationManager.js";
+import AnimationManager from "../AnimationManager.js";
 import ArtObject from "./ArtObject.js";
 import { NotImplementedError } from "../errors.js";
 
 /** 
-* @typedef {import("../Screen.js").default} Screen
+* @typedef {import("../Scene.js").default} Scene
 */
-
 
 export default class Sprite extends ArtObject {
 
      /**
-     * @param {Screen} screen
+     * @param {Scene} scene
+     * @param {Symbol} id
      * @param {{ x: number, y: number }} pos
      * @param {number} width
      * @param {number} height
      * @param {string | undefined} image 
      */
-    constructor(screen, pos, width, height, image) {
-        super(screen, pos, width, height);
-        this.animations = new AnimationManager();
+    constructor(scene, id, pos, width, height, image = undefined) {
+        super(scene, id, pos, width, height);
+        this.animations = new AnimationManager(this);
         this.image = image;
     }
 
@@ -33,6 +33,7 @@ export default class Sprite extends ArtObject {
      * @param {CanvasRenderingContext2D} ctx 
      */
     draw(ctx) {
+
         // Draw static image for sprite
         if(this.image) {
             ctx.drawImage(this.scene.art.images.get(this.image), this.pos.x, this.pos.y);

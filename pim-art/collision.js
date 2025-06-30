@@ -1,4 +1,4 @@
-import ArtObject from "./objects/ArtObject.js";
+import  ArtObject  from "./objects/ArtObject.js";
 
 /**
  * @typedef  {{obj: ArtObject, blocked: {
@@ -26,10 +26,9 @@ function getCollision(obj1, obj2) {
     const box1YEnd = box1.y + box1.height;
     const box2YEnd = box2.y + box2.height;
 
-
-
     // If box1 is to the left, top, right or bottom of box2 but not touching, i.e. outside of the limit of box2, they are not colliding. 
     const isColliding = !(box1XEnd < box2.x || box1YEnd < box2.y || box1.x > box2XEnd || box1.y > box2YEnd);
+
 
     if (isColliding) {
         // Calculate overlaps in Y and X direction and determine if it is a vertical collision and/or a horizontal collision
@@ -46,8 +45,6 @@ function getCollision(obj1, obj2) {
 
         return {
             obj: obj2,
-            overlapX,
-            overlapY,
             blocked: {
                 top: isVerticalCollision && box1.y > box2.y,
                 right: isHorizontalCollision && box1.x < box2.x,
@@ -60,4 +57,4 @@ function getCollision(obj1, obj2) {
     return null;
 }
 
-export {getCollision};
+export {getCollision}; 

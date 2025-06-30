@@ -1,17 +1,34 @@
 
-import MusicPlayer from "./music-player/MusicPlayer.js";
-import {Art} from "./lib/index.js";
-import Play from "./PlayScreen.js";
+import {Art} from "./pim-art/index.js";
+import Play from "./Play.js";
 import Pause from "./Pause.js";
+import EventsManager from "./EventsManager.js";
+import MessagesManager from "./message.js";
 
 
-const art = new Art({
+const art = new Art({ 
     pause: new Pause(),
     play: new Play(),
-    width: 320,
-    height: 266,
-    canvasId: "art-canvas"
+    width: 400,
+    height: 225,
+    canvas: "#art-canvas",
+    services: {events: new EventsManager(), messages: new MessagesManager()},
 });
 
 art.play();
    
+
+const musicPlayerEl = document.querySelector("music-player");
+
+musicPlayerEl.addEventListener("play", () => {
+    if(!art.isPlaying) {
+        art.isPlaying = true;
+    }
+});
+
+
+musicPlayerEl.addEventListener("pause", () => {
+    if(art.isPlaying) {
+        art.isPlaying = false;
+    }
+});

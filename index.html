@@ -9,20 +9,10 @@
 </head>
 
 <body>
-    <header>
-        <h1>Welcome to Yummy Restaurant</h1>
-    </header>
-    <main>
-        <p>Delicious food served fresh every day!</p>
-
-        <div id="canvas-container">
-            <canvas id="art-canvas"></canvas>
-            <music-player channel="@love321nine" playlist="Yummy restaurant"/>
-        </div>
+    <main id="canvas-container">
+        <canvas id="art-canvas"></canvas>
+        <music-player channel="@love321nine" playlist="Yummy restaurant"></music-player>
     </main>
-    <footer>
-        <p>&copy; 2023 Yummy Restaurant. All rights reserved.</p>
-    </footer>
 
     <template id="template-player">
         <script src="https://www.youtube.com/iframe_api"></script>
@@ -55,6 +45,7 @@
                 width: 100%;
                 height: 100%;
                 background-color: transparent;
+                cursor: pointer;
          
             }
             #player-container:hover > #player  {
@@ -65,10 +56,8 @@
                 bottom: 0;
                 left: 0;
                 width: 100%;
-              
                 display: flex;
                 align-items: center;
-
                 justify-content: space-between;
                 opacity: 0;
                 transition: opacity 0.2s ease-in;
@@ -125,8 +114,11 @@
             }
         </style>
         <div id="player-container">
+            
             <section id="player">           
-            <section id="player-card">
+            
+                <section id="player-card">
+
                 <svg class="icon" fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"> <path d="M8 4h12v16h-8v-8h6V8h-8v12H2v-8h6V4zm0 10H4v4h4v-4zm10 0h-4v4h4v-4z" fill="currentColor"/> </svg>
                     <p id="song-title"></p>
                 </section>
@@ -135,6 +127,7 @@
                 <section id="player-controls">
                     <button id="btn-play-pause"><svg class="icon" fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"> <path d="M10 20H8V4h2v2h2v3h2v2h2v2h-2v2h-2v3h-2v2z" fill="currentColor"/> </svg></button>
                     <button id="btn-shuffle"><svg class="icon" fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"> <path d="M3 5V3h2v2H3zm4 2H5V5h2v2zm2 2H7V7h2v2zm2 2H9V9h2v2zm2 0h-2v2h2v2h2v2h2v2h-2v2h6v-6h-2v2h-2v-2h-2v-2h-2v-2zm2-2v2h-2V9h2zm2-2v2h-2V7h2zm0-2v2h2v2h2V3h-6v2h2zM5 19v-2h2v2H5zm0 0v2H3v-2h2zm2-2v-2h2v2H7z" fill="currentColor"/> </svg></button>
+                    
                     <div id="volume-control">
                         <button></button>
                         <button></button>
@@ -142,7 +135,6 @@
                         <button></button>
                         <button></button>
                     </div>
-        
                 </section>
             </section>
             <div id="youtube-player"></div>
@@ -150,6 +142,7 @@
     </template>
 
     <script src="index.js" type="module"></script>
+    <script src="/music-player/MusicPlayerElement.js" type="module"></script>
 </body>
 
 </html>

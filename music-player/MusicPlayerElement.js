@@ -5,9 +5,9 @@ const playIcon = '<svg class="icon" fill="none" xmlns="http://www.w3.org/2000/sv
 const pauseIcon = '<svg class="icon" fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"> <path d="M10 4H5v16h5V4zm9 0h-5v16h5V4z" fill="currentColor"/> </svg>';
 
 const MAX_VOLUME = 100;
-const DEFAULT_VOLUME = 20;
+const DEFAULT_VOLUME = 0;
 const VOLUME_STEP = 20;
-const DEBUG = true;
+const DEBUG = false;
 
 const PlayerStates = new Map([
     [-1, "unstarted"],
@@ -19,7 +19,7 @@ const PlayerStates = new Map([
 ]);
 
 
-export default class MusicPlayer extends HTMLElement {
+export default class MusicPlayerElement extends HTMLElement {
     static observedAttributes = ["channel", "playlist"];
 
     youTubePlayer;
@@ -43,9 +43,11 @@ export default class MusicPlayer extends HTMLElement {
     }
 
     async connectedCallback() {
+        
         if(DEBUG) console.log(`Connected music player element: ${this.getAttribute("channel")} ${this.getAttribute("playlist")}`);
 
         const playerContainer = this.shadowRoot.querySelector("#player-container");
+        const player = this.shadowRoot.querySelector("#player");
         const btnPlayPause = this.shadowRoot.querySelector("#btn-play-pause");
         const btnShuffle =  this.shadowRoot.querySelector("#btn-shuffle");
         const volumeControl =  this.shadowRoot.querySelector("#volume-control");
@@ -53,6 +55,7 @@ export default class MusicPlayer extends HTMLElement {
         const youtubePlayerDiv = this.shadowRoot.querySelector("#youtube-player");
 
         if(!playerContainer) throw new Error("Missing DOM element: player container");
+        if(!player) throw new Error("Missing DOM element: player");
         if (!youtubePlayerDiv) throw new Error("Missing DOM element: youtube-player");
         if (!btnPlayPause) throw new Error("Missing DOM element: btnPlayPause");
         if (!btnShuffle) throw new Error("Missing DOM element: btnShuffle");
@@ -64,52 +67,65 @@ export default class MusicPlayer extends HTMLElement {
         this.songTitle = songTitle
         this.songs = await getSongs(this.getAttribute("channel"), this.getAttribute("playlist"));
         this.volumeControl = volumeControl;
+        this.btnPlayPause = btnPlayPause;
 
         this.youTubePlayer = new YT.Player(youtubePlayerDiv, {
-            videoId: this.songs.random(),
+            videoId: this.songs.random().videoId,
             height: "1px",
             width: "1px",
+        
             events: {
                 'onReady': () => {
                     this.pickSong();
+                    this.youTubePlayer.setVolume(DEFAULT_VOLUME); 
                     playerContainer.style.display = "flex";
-                    this.dispatchEvent(new Event("ready"));
+                    this.dispatchEvent(new CustomEvent("ready"));
+                    this.pause();
                 } ,
                 'onStateChange': this.handlePlayerStateChange.bind(this),
             },
         });
 
+   
+
+        this.btnPlayPause.addEventListener("click", () => {
+            if (this.youTubePlayer && [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING].includes(this.youTubePlayer.getPlayerState())) {
+                this.pause();
+            } else {
+                this.play();
+            }
+
+        
+        });
+
+        playerContainer.addEventListener("click", (e) => {
+            if (this.youTubePlayer && [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING].includes(this.youTubePlayer.getPlayerState())) {
+                this.pause();
+            } else {
+                this.play();
+            }
+        });
+
+        player.addEventListener("click", (e) => {
+            e.stopPropagation();
+        });
+
+        
+        btnShuffle.addEventListener("click", (e) => {
+            if (this.youTubePlayer && this.youTubePlayer.getPlayerState() === YT.PlayerState.PLAYING) {
+                this.pickSong();
+            }
+        });
+
         this.initVolumeControl(DEFAULT_VOLUME);
 
-        btnPlayPause.addEventListener("click", () => {
-            if (this.youTubePlayer && this.youTubePlayer.getPlayerState() === 1) {
-                this.youTubePlayer.pauseVideo();
-                btnPlayPause.innerHTML = playIcon;
-            } else {
-                this.youTubePlayer.playVideo();
-                btnPlayPause.innerHTML = pauseIcon;
-            }
-        });
-
-        btnShuffle.addEventListener("click", () => {
-            this.pickSong();
-        });
-
-        btnShuffle.addEventListener("click", () => {
-            if (this.youTubePlayer && this.youTubePlayer.getPlayerState() === 1) {
-                this.youTubePlayer.pauseVideo();
-                btnPlayPause.innerHTML = playIcon;
-            } else {
-                this.youTubePlayer.playVideo();
-                btnPlayPause.innerHTML = pauseIcon;
-            }
-        });
-
     }
+
 
     attributeChangedCallback(name, oldValue, newValue) {
        if(DEBUG) console.log(`Attribute ${name} has changed from ${oldValue} to ${newValue}`);
     }
+
 
     handlePlayerStateChange(event) {
         if(DEBUG) console.log(`Player state changed: ${PlayerStates.get(event.data) || event.data}`);
@@ -121,10 +137,30 @@ export default class MusicPlayer extends HTMLElement {
         }
     }
 
+
     pickSong() {
-        const song = this.songs.random();
+        const song = this.songs.filter(s => s.videoId !== this.youTubePlayer.getVideoData().video_id).random();
         this.youTubePlayer.loadVideoById(song.videoId);
         this.songTitle.textContent = song.title;
+    }
+
+
+    isOn() {
+        return this.youTubePlayer !== undefined && this.youTubePlayer.getPlayerState && this.youTubePlayer.getPlayerState() === YT.PlayerState.PLAYING;
+    }
+
+
+    play() {
+        this.youTubePlayer.playVideo();
+        this.btnPlayPause.innerHTML = pauseIcon;
+        this.dispatchEvent(new CustomEvent("play"));
+    }
+
+
+    pause() {
+        this.youTubePlayer.pauseVideo();
+        this.btnPlayPause.innerHTML = playIcon;
+        this.dispatchEvent(new CustomEvent("pause"));
     }
 
 
@@ -141,6 +177,7 @@ export default class MusicPlayer extends HTMLElement {
             button.addEventListener("click", () => {
                 const newVolume = (MAX_VOLUME / 5) * (parseInt(i) + 1);
                 const finalVolume = volume === newVolume ? volume - MAX_VOLUME / 5 : newVolume;
+ 
                 this.youTubePlayer.setVolume(finalVolume);
                 this.renderVolume(finalVolume);
             });
@@ -159,7 +196,9 @@ export default class MusicPlayer extends HTMLElement {
             this.renderVolume(finalVolume);
         });
 
+   
         this.renderVolume(volume);
+
     }
 
     /**
@@ -182,8 +221,10 @@ export default class MusicPlayer extends HTMLElement {
                 button.classList.remove("square-filled");
             }
         }
+        
+
     }
 
 }
 
-customElements.define("music-player", MusicPlayer);
+customElements.define("music-player", MusicPlayerElement);

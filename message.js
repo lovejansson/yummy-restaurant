@@ -47,16 +47,8 @@ export const phrases = {
         return phrases[orderType]?.random() || "How can I assist you today?";
     },
 
-    welcomeGuest: (numberOfGuests) => (["Welcome to The Yummy Restaurant!", "Welcome!"].random()),
-
-    placeOrder: () => (["Another order coming up!",
-        "Order's in!",
-        "Got another one for you!",
-        "Here’s the next order!",
-        "Order coming through!",
-        "Sending this one your way!",
-        "Got an order for you!",
-        "This one’s ready to go!"].random()),
+    welcomeGuest: (numberOfGuests) => (["Welcome to The Yummy Restaurant! Follow me.", "Welcome!", 
+        `Welcome to The Yummy Restaurant! A table for ${numberOfGuests}?.`, "Welcome!"].random()),
 
     orderReady: (meal, table) => ([
         `Two ${meal} for table ${table}!`,
@@ -152,59 +144,46 @@ export const phrases = {
 
 
 
-export class DialogManager {
+
+/**
+ * Dialog manager functions as a mail box or mail man were parts 
+ * of the program can send messages and others can check if they have received any messages.
+ */
+export default class MessagesManager {
 
     /**
-     * @type {Map<string, {message: string, from: string}>}
-     * @private
+     * @type {Map<Symbol, {message: Symbol, from: string}>}
      */
-    messages;
+    #messages;
 
-    /**
-     * @type {DialogManager}
-     * @private
-     */
-    instance;
-
-    /**
-     * Use getInstance to get the dialog engine
-     * @private
-     */
     constructor() {
         this.messages = new Map();
     }
 
     /**
-     * @static
-     * @returns {DialogManager}
-     */
-    static GetInstance() {
-        if(this.instance === undefined) {
-            this.instance = new DialogManager();
-        }
-
-        return this.instance;
-    }
-
-    /**
      * @param {string} msg 
      * @param {string} from 
-     * @param string} to 
+     * @param {Symbol[] | Symbol} to 
      */
     send(msg, from, to) {
-        this.messages.set(to, {message: msg, from});
+        if(typeof to === 'symbol') {
+            this.#messages.set(to, {message: msg, from});
+        } else {
+            for(const t of to) {
+                this.#messages.set(t, {message: msg, from});
+            }
+        }
     }
 
-
      /**
-     * @param string} to id for the receiver of the message
+     * @param {Symbol} to id for the receiver of the message
      */
     receive(to) {
-        const message = this.messages.get(to);
+        const message = this.#messages.get(to);
 
         // Message is 'picked up' 
         if(message !== undefined) {
-            this.messages.delete(to);
+            this.#messages.delete(to);
         }
 
         return message;
@@ -212,6 +191,10 @@ export class DialogManager {
 }
 
 
+/**
+ * Message bubble is handling logic for displaying a message bubble next to the sprite 
+ * with given message inside. 
+ */
 export class MessageBubble {
 
     /**
@@ -221,35 +204,29 @@ export class MessageBubble {
 
     /**
      * @type {boolean}
-     * @private
      */
-    shouldHideMessage;
+    #shouldHideMessage;
 
-    /**
-     * @param {string} message 
-     */
     constructor() {
         this.message = null;
-        this.shouldHideMessage = false;
+        this.#shouldHideMessage = false;
     }
 
     showMessage(message, duration = 2000) {
-        console.log(message);
         this.message = message;
 
         setTimeout(() => {
-            this.shouldHideMessage = true;
+            this.#shouldHideMessage = true;
         }, duration);
     }
 
-
     shouldHide() {
-        return this.message !== null && this.shouldHideMessage;
+        return this.message !== null && this.#shouldHideMessage;
     }
 
     hideMessage() {
         this.message = null;
-        this.shouldHideMessage = false;
+        this.#shouldHideMessage = false;
     }
 
     isShowing() {

@@ -100,7 +100,7 @@ function createPathBFS(start, end, grid) {
  */
 function createPathAStar(start, end, grid) {
 
-    if(grid[start.row][end.row] === 1 || grid[end.row][end.col] === 1) throw new Error("Start cell is a non walkable cell.");
+    if(grid[start.row][start.col] === 1 ) throw new Error("Start cell is a non walkable cell.");
     if(grid[end.row][end.col] === 1) throw new Error("End cell is a non walkable cell.");
 
     const rows = grid.length;
@@ -215,24 +215,24 @@ function createGrid(rows, cols, defaultCellValue = null) {
  * @param {number} cols
  * @param {number} cellSize
  */
-function drawGrid(ctx, rows, cols, cellSize, strokeColor = "black", fillColor = "white") {
+function drawGrid(ctx, rows, cols, cellSize, offsetX = 0, offsetY = 0, strokeColor = "black", fillColor = "white") {
 
     ctx.beginPath();
-
-   
     ctx.strokeStyle = strokeColor;
     ctx.fillStyle = fillColor;
 
-    const translateOffset = 0;
+    const translateOffset = 0.5;
 
     for(let r = 0; r < rows; ++r) {
         for (let c = 0; c < cols; ++c) {
 
-            ctx.moveTo(c * cellSize - translateOffset, r * cellSize - translateOffset);
-            ctx.lineTo((c + 1) * cellSize - translateOffset, r * cellSize - translateOffset);
-            ctx.lineTo((c + 1) * cellSize - translateOffset,(r + 1) * cellSize - translateOffset);
-            ctx.lineTo(c * cellSize - translateOffset, (r + 1) * cellSize - translateOffset);
-            ctx.lineTo(c * cellSize - translateOffset,  r * cellSize - translateOffset);
+            ctx.moveTo((c * cellSize + translateOffset) + offsetX, r * cellSize + translateOffset + offsetY);
+            ctx.lineTo((c + 1) * cellSize + translateOffset + offsetX, r * cellSize + translateOffset + offsetY);
+            ctx.lineTo((c + 1) * cellSize + translateOffset + offsetX,(r + 1) * cellSize+  translateOffset + offsetY);
+            ctx.lineTo(c * cellSize + translateOffset + offsetX, (r + 1) * cellSize + translateOffset + offsetY);
+            ctx.lineTo(c * cellSize + translateOffset + offsetX,  r * cellSize + translateOffset + offsetY);
+
+            
         }
     }
 
