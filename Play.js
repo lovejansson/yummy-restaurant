@@ -7,13 +7,17 @@ import Table from "./Table.js";
 export default class Play extends Scene {
 
     constructor() {
+
         super();
+
         this.waiter = new Waiter("waiter1", { x: 0, y: 2 * 16 }, 16, 16);
         this.tables = [];
         this.idleSpots = [];
     }
 
+
     async init() {
+
         this.art.images.add("table", `${BASE_URL}images/table.png`);
         this.art.images.add("background", `${BASE_URL}images/background.png`);
         
@@ -21,16 +25,25 @@ export default class Play extends Scene {
        
         this.background = new StaticImage(this, Symbol("background"), { x: 0, y: 0 }, 320, 226, "background");
         
-        this.#createGrid();
         this.#createTables();
         this.#createIdleSpots();
-
+        this.#createGrid();
         this.isInitialized = true;
     }
 
-    update() {
-        // this.waiter.update();
 
+    update() {
+        if (this.art.keys.up) {
+             console.log("up")
+        } else if (this.art.keys.down) {
+            console.log("down")
+        } else if (this.art.keys.left) {
+            console.log("left")
+        } else if (this.art.keys.right) {
+            console.log("right")
+        } else if (this.art.keys.space) {
+            console.log("space")
+        }
     }
 
     /**
@@ -62,21 +75,26 @@ export default class Play extends Scene {
             t.draw(ctx);
         }
 
-        const path = createPathAStar({row: 2, col: 10,}, {row: 8, col: 15},this.grid);
+        for (let i = 0; i < this.tables.length; ++i) {
+            const table = this.tables[i];
+    
+            const corner = {row: table.pos.y / 16 + 2, col: table.pos.x / 16 - 1};
+            const path = createPathAStar({row: 2, col: 9,}, corner, this.grid);
+            ctx.fillStyle = table.color ? table.color : ["blue", "green", "yellow", "pink"].random();
+            table.color = ctx.fillStyle;
+            for(const cell of path) {
 
-        ctx.fillStyle = "blue"
-        for(const cell of path) {
-            ctx.fillRect(cell.col * 16, cell.row * 16, 16, 16);
+                ctx.fillRect(cell.col * 16, cell.row * 16, 16, 16);
+            }
+
         }
-
     }
 
+
     #createGrid() {
-
         this.grid = createGrid(this.art.height / 16, this.art.width / 16, 1);
-
+        
         // Create walkable tiles (0) in grid
-
         for (let c = 0; c < 21; ++c) {
             this.grid[2][c] = 0;
             this.grid[13][c] = 0;
@@ -104,12 +122,17 @@ export default class Play extends Scene {
             }
         }
 
-
         for (let r = 10; r < 13; ++r) {
             for (const c of [0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 18, 19, 20]) {
                 this.grid[r][c] = 0;
             }
         }
+
+        for(const t of this.tables) {
+            const corner = {row: t.pos.y / 16 + 2, col: t.pos.x / 16 - 1};
+            this.grid[corner.row][corner.col] = 0;
+        }
+        
     }
 
     #createIdleSpots() {

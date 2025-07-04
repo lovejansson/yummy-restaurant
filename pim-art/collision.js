@@ -18,6 +18,7 @@ import  ArtObject  from "./objects/ArtObject.js";
  * @returns {CollisionResult|null} Returns an object with the colliding object and the blocked sides (top, right, bottom, left) or null if no collision.
  */
 function getCollision(obj1, obj2) {
+    
     const box1 = { x: obj1.pos.x, y: obj1.pos.y, width: obj1.width, height: obj1.height };
     const box2 = { x: obj2.pos.x, y: obj2.pos.y, width: obj2.width, height: obj2.height };
 

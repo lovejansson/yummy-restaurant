@@ -1,16 +1,11 @@
 
 - Rita gäster
-
-    - Det kommer vara runt 18 stycken som är där åt gången 12 - 18, satsa på 9 * 4 totalt ? 36
-    - Gäst som sitter.
-    - Gäst som äter.
-    - Gäst som dricker. 
+    - Gäst som sitter * 4
+    - Gäst som äter * 4
+    - Gäst som dricker * 4 
     - Gäst som sätter sig ned i 4 riktningar. 
     - Gäst som reser sig upp i 4 riktningar. 
 
-- Programmera
+-> Programmera
 
-- paths which are diagonal
-- sprite walk diagonal
-- del av pim som ska kunna integrera en key listener i libbet för testning av sprite mechanics
-
+* Sekvens av hela flödet med en typ av gäst och en waiter sort

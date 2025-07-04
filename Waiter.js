@@ -328,6 +328,7 @@ class Walking extends ActionState {
      * @param {Waiter} waiter 
      */
     update(waiter) {
+        
         if (this.path === null) {
             this.path = new WalkPath(waiter, waiter.pos, this.goal);
         }

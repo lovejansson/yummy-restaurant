@@ -11,14 +11,19 @@ import "./array.js"
 * @param {Cell} cell 
 * @param {number[][]} grid
 */
-const getNeighbours = (cell, grid) => {
+const getNeighbours = (cell, grid, includeDiagonalNeighbours = false) => {
   
     const rows = grid.length;
     const cols = grid[0].length;
 
     const neighbours = [];
 
-    for(const [r, c] of [[-1, 0], [0, 1], [1, 0], [0, -1]]) {
+    const neighbourDiffs = includeDiagonalNeighbours ? 
+    [[-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1]] 
+    : 
+    [[-1, 0], [0, 1], [1, 0], [0, -1]]
+
+    for(const [r, c] of neighbourDiffs) {
         const neighbour = {row: cell.row + r, col: cell.col + c};
       
         if(neighbour.row !== -1 && neighbour.col !== -1 && neighbour.row !== rows -1 && neighbour.col !== cols -1 && grid[neighbour.row][neighbour.col] === 0) neighbours.push(neighbour);     
@@ -96,7 +101,6 @@ function createPathBFS(start, end, grid) {
  * @param {Cell} end
  * @param {any[][]} grid ()
  * @returns {Cell[]} path, array of grid cells 
- * 
  */
 function createPathAStar(start, end, grid) {
 
@@ -152,13 +156,13 @@ function createPathAStar(start, end, grid) {
         // We reached the end cell
         if(curr.row === end.row && curr.col === end.col) break;
         
-        const neighbours = getNeighbours(curr, grid);
+        const neighbours = getNeighbours(curr, grid, true);
 
         const g = scoresMap[curr.row][curr.col] + 1; 
 
         for(const n of neighbours) {
 
-            if(grid[n.row][n.col] === 1 ) continue; // obsticle cell 
+            if(grid[n.row][n.col] > 0) continue; // obsticle cell 
 
             const h = heuristic(n, end);
             const f = g + h;
@@ -239,4 +243,4 @@ function drawGrid(ctx, rows, cols, cellSize, offsetX = 0, offsetY = 0, strokeCol
     ctx.stroke();
 }
 
-export {drawGrid, createGrid, createPathAStar, createPathBFS};
+export { drawGrid, createGrid, createPathAStar, createPathBFS };

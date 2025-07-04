@@ -23,10 +23,21 @@ import ImagesManager from "./ImagesManager.js";
 const FRAME_RATE_DEFAULT = 120; 
 const CANVAS_SELECTOR_DEFAULT = "canvas";
 
+
 /**
  * @description The main class for managing the art piece; switching between the play and pause scenes, loading assets, and managing services like images and audio. 
  */
 export default class Art {
+
+    /**
+    * @type {{ 
+    * up: boolean,
+    * right: boolean,
+    * down: boolean,
+    * left: boolean,
+    * space: boolean}}
+    */
+    keys;
 
     /**
      * @type {boolean}
@@ -67,7 +78,6 @@ export default class Art {
      * @param {ArtConfig} config 
      */
     constructor(config) {
-
         this.images = new ImagesManager();
         this.audio = new AudioPlayer();
         this.#isPlaying = false;
@@ -78,7 +88,15 @@ export default class Art {
         this.height = config.height;
         this.state = config.state ? config.state : null;
         this.services = config.services ? config.services : null;
+        this.keys = { 
+            up: false,
+            right: false,
+            down: false,
+            left: false,
+            space: false
+        }
     }
+
 
     play() {
         this.#init().then(() => {
@@ -86,10 +104,12 @@ export default class Art {
         });
     }
 
+    
     /**
      * @param {boolean} val
      */
     set isPlaying(val) {
+
         if(val) {
             this.config.play.start();
             this.config.pause.stop();
@@ -100,6 +120,7 @@ export default class Art {
 
         this.#isPlaying = val;
     }
+
 
     get isPlaying(){
         return this.#isPlaying;
@@ -147,6 +168,7 @@ export default class Art {
         requestAnimationFrame((elapsed) => this.#privatePlay(ctx, elapsed));
     }
 
+
     async #init() {
 
         const  ctx = this.#initCanvas(this.config.canvas || CANVAS_SELECTOR_DEFAULT);
@@ -154,9 +176,40 @@ export default class Art {
         this.config.play.art = this; 
         this.config.pause.art = this; 
 
+        addEventListener("keydown",  (e) => {
+
+            if(!this.keys.up && ["ArrowUp", "w", "w"].includes(e.key)) {
+                this.keys.up = true;
+            } else if(!this.keys.right && ["ArrowRight", "d", "D"].includes(e.key)) {
+                this.keys.right = true;
+            } else if(!this.keys.down && ["ArrowDown", "s", "S"].includes(e.key)) {
+                this.keys.down = true;
+            } else if(!this.keys.left && ["ArrowLeft", "a", "A"].includes(e.key)) {
+                this.keys.left = true;
+            } else if(!this.keys.space && [" "].includes(e.key)) {
+                this.keys.space = true;
+            }
+        });
+
+        addEventListener("keyup",  (e) => {
+
+            if(this.keys.up && ["ArrowUp", "w", "w"].includes(e.key)) {
+                this.keys.up = false;
+            } else if(this.keys.right && ["ArrowRight", "d", "D"].includes(e.key)) {
+                this.keys.right = false;
+            } else if(this.keys.down && ["ArrowDown", "s", "S"].includes(e.key)) {
+                this.keys.down = false;
+            } else if(this.keys.left && ["ArrowLeft", "a", "A"].includes(e.key)) {
+                this.keys.left = false;
+            } else if(this.keys.space && [" "].includes(e.key)) {
+                this.keys.space = false;
+            }
+        });
+
         this.ctx = ctx;
 
     }
+
 
     #initCanvas(selector) {
         const canvas = document.querySelector(selector);

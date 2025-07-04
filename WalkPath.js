@@ -14,16 +14,18 @@ export class WalkPath extends EventTarget {
     #path;
     #currCellIdx;
 
-
     constructor(sprite, start, end){
         super();
-        console.log(start, end, sprite.scene.grid)
+
         this.#path = createPathAStar(start, end, sprite.scene.grid);
+
+         for(const cell of this.#path) {
+            this.sprite.scene.grid[cell.row][cell.col] = 4; // Tiles in path is occupied by this sprite walkpath right now
+        }
+
         this.#currPos = {x: start.col * 16, y: start.row * 16};
         this.#currPixelDiff = 0;
         this.#currCellIdx = 0;
-
-        
     }
 
     update() {
@@ -46,6 +48,9 @@ export class WalkPath extends EventTarget {
         this.#currCellIdx++;
         if(this.#currCellIdx === this.#path.length - 1) {
             this.hasReachedGoal = true;
+            for(const cell of this.#path) {
+                this.sprite.scene.grid[cell.row][cell.col] = 0; // Tile not occupied for sprite anymore
+            }
         }
     }
 
