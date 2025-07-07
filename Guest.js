@@ -5,7 +5,7 @@ import { Sprite } from "./pim-art/index.js";
 import { WalkPath } from "./WalkPath.js";
 
 /**
- * @typedef {"right" | "left" | "back" | "front"} Direction
+ * @typedef {"n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw"} Direction
  * 
  */
 
@@ -48,8 +48,8 @@ class Arriving extends LifeCycleState {
      * @param {Guest} guest 
      */
     init(guest) {
-        guest.scene.art.events.add("arrive");
-        guest.movingState = new IdleStanding("right");
+        guest.scene.art.services.events.add({name: "arrive", data: {pos: guest.pos, guest: [guest.id]}});
+        guest.actionState = new IdleStanding("e");
     }
 
     /**
@@ -58,15 +58,17 @@ class Arriving extends LifeCycleState {
     update(guest) { 
 
         if (guest.isIdleStanding()) {
-            const message = guest.scene.art.messages.receive(guest.id);
+    
+            const message = guest.scene.art.services.messages.receive(guest.id);
+
             if (message !== undefined) {
-                guest.movingState = new Walking(message.data.pos); // TODO: det här är table position. Bestäm vilken position som gästen ska vara på nånstans och beräkna faktisk
+                guest.actionState = new Walking(message.data.pos); // TODO: det här är table position. Bestäm vilken position som gästen ska vara på nånstans och beräkna faktisk
                // tile position
             }
 
         } else if (guest.isWalking()) {
-            if (guest.movingState.hasReachedGoal()) {
-                guest.movingState = new SittingDown(guest.tableSide);
+            if (guest.actionState.hasReachedGoal()) {
+                guest.actionState = new SittingDown(guest.tableSide);
             }
         } else if (guest.isIdleSitting()) {
             guest.lifeCycleState = new Order("food");
@@ -186,10 +188,9 @@ class EatingAndDrinking extends LifeCycleState {
 
             } else if (this.switchAction) {
                 if (guest.isEating()) {
-                    guest.movingState = new Drinking();
-                
+                    guest.actionState = new Drinking();
                 } else {
-                    guest.movingState = new Eating();
+                    guest.actionState = new Eating();
                 }
 
                 this.switchAction = false;
@@ -301,12 +302,12 @@ class Order extends LifeCycleState {
 /**
  * The leaving state is when the guest is done and walks out of the restaurant. 
  */
-class Leaving extends State {
+class Leaving extends LifeCycleState {
     /**
      * @param {Guest} guest 
      */
     init(guest) {
-        guest.movingState = new StandingUp(guest.tableSide);
+        guest.actionState = new StandingUp(guest.tableSide);
     }
 
     /**
@@ -315,8 +316,8 @@ class Leaving extends State {
     update(guest) {
 
         if(guest.isIdleStanding()) {
-            guest.movingState = new Walking({ x: -1, y: 50 }); 
-        } else if (guest.movingState.hasReachedGoal()) {
+            guest.actionState = new Walking({ x: -1, y: 50 }); 
+        } else if (guest.actionState.hasReachedGoal()) {
             guest.scene.remove(guest);
         }
     }
@@ -370,6 +371,7 @@ class IdleSitting extends ActionState {
 
 class IdleStanding extends ActionState {
 
+
     /**
      * @type {Direction}
      */
@@ -379,6 +381,7 @@ class IdleStanding extends ActionState {
      * @param {Direction} direction
      */
     constructor(direction) {
+        super();
         this.direction = direction;
     }
 
@@ -386,8 +389,8 @@ class IdleStanding extends ActionState {
      * @param {Guest} guest 
      */
     update(guest) {
-        if (!guest.animations.isPlaying(`idle-stand-${this.direction}`)) {
-            guest.animations.animations.play(`idle-stand-${this.direction}`);
+        if (!guest.animations.isPlaying(`idle-${this.direction}`)) {
+            guest.animations.play(`idle-${this.direction}`);
         }
     }
 }
@@ -408,7 +411,7 @@ class StandingUp extends ActionState {
     update(guest) {
         
         if (!guest.animations.isPlaying(`stand-up-${this.direction}`)) {
-            guest.movingState = new IdleStanding(this.direction);
+            guest.actionState = new IdleStanding(this.direction);
         }
     }
 }
@@ -428,7 +431,7 @@ class SittingDown extends ActionState {
      */
     update(guest) {
         if (!guest.animations.isPlaying(`sit-down-${guest.tableSide}`)) {
-            guest.movingState = new IdleSitting(guest.tableSide);
+            guest.actionState = new IdleSitting(guest.tableSide);
         }
     }
 }
@@ -448,7 +451,7 @@ export default class Guest extends Sprite {
     /**
      * @type {ActionState}  
      */
-    movingState;
+    actionState;
 
     /**
      * @type {Direction}
@@ -467,23 +470,41 @@ export default class Guest extends Sprite {
         super(scene, id, pos, width, height);
         this.tableSide = tableSide;
         this.lifeCycleState = new Arriving();
-        this.movingState = new IdleStanding("right");
+        this.lifeCycleState.init(this);
+
+        this.animations.create("walk-s", {type: "spritesheet", frames: "granny-walk", frameRate: 100, numberOfFrames: 4, startIdx: 0 });
+        this.animations.create("walk-se", {type: "spritesheet", frames: "granny-walk", frameRate: 100, numberOfFrames: 4, startIdx: 4 });
+        this.animations.create("walk-e", {type: "spritesheet", frames: "granny-walk", frameRate: 100, numberOfFrames: 4, startIdx: 8 });
+        this.animations.create("walk-ne", {type: "spritesheet", frames: "granny-walk", frameRate: 100, numberOfFrames: 4, startIdx: 12 });
+        this.animations.create("walk-n", {type: "spritesheet", frames: "granny-walk", frameRate: 100, numberOfFrames: 4, startIdx: 16 });
+        this.animations.create("walk-nw", {type: "spritesheet", frames: "granny-walk", frameRate: 100, numberOfFrames: 4, startIdx: 20 });
+        this.animations.create("walk-w", {type: "spritesheet", frames: "granny-walk", frameRate: 100, numberOfFrames: 4, startIdx: 24 });
+        this.animations.create("walk-sw", {type: "spritesheet", frames: "granny-walk", frameRate: 100, numberOfFrames: 4, startIdx: 28 });
+
+        this.animations.create("idle-s", {type: "spritesheet", frames: "granny-walk", frameRate: 500, numberOfFrames: 1, startIdx: 0 });
+        this.animations.create("idle-se", {type: "spritesheet", frames: "granny-walk", frameRate: 500, numberOfFrames: 1, startIdx: 4 });
+        this.animations.create("idle-e", {type: "spritesheet", frames: "granny-walk", frameRate: 500, numberOfFrames: 1, startIdx: 8 });
+        this.animations.create("idle-ne", {type: "spritesheet", frames: "granny-walk", frameRate: 500, numberOfFrames: 1, startIdx: 12 });
+        this.animations.create("idle-n", {type: "spritesheet", frames: "granny-walk", frameRate: 500, numberOfFrames: 1, startIdx: 16 });
+        this.animations.create("idle-nw", {type: "spritesheet", frames: "granny-walk", frameRate: 500, numberOfFrames: 1, startIdx: 20 });
+        this.animations.create("idle-w", {type: "spritesheet", frames: "granny-walk", frameRate: 500, numberOfFrames: 1, startIdx: 24 });
+        this.animations.create("idle-sw", {type: "spritesheet", frames: "granny-walk", frameRate: 500, numberOfFrames: 1, startIdx: 28 });
     }
 
     isIdleStanding() {
-        return this.movingState instanceof IdleStanding;
+        return this.actionState instanceof IdleStanding;
     }
 
     isIdleSitting() {
-        return this.movingState instanceof IdleSitting;
+        return this.actionState instanceof IdleSitting;
     }
 
     isWalking() {
-        return this.movingState instanceof Walking;
+        return this.actionState instanceof Walking;
     }
 
     update() {
         this.lifeCycleState.update(this);
-        this.movingState.update(this);
+        this.actionState.update(this);
     }
 }

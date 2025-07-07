@@ -1,11 +1,17 @@
 
-- Rita gäster
-    - Gäst som sitter * 4
-    - Gäst som äter * 4
-    - Gäst som dricker * 4 
-    - Gäst som sätter sig ned i 4 riktningar. 
-    - Gäst som reser sig upp i 4 riktningar. 
+- Rita 1 typ av gäst och en typ av waiter
+    - Gäst som sitter på stol i 4 riktningar
+    - Gäst som går i 8 riktningar
+    - Waiter som går i 8 riktningar 
+    
+-> Programmera hela flödet med 1 typ av waiter och en typ av gäst fast duplicerade för att få till typ av animeringar etc. 
 
--> Programmera
+-> Gäst som sätter sig ned i 4 riktningar.
 
-* Sekvens av hela flödet med en typ av gäst och en waiter sort
+-> Gäst som reser sig upp i 4 riktningar. 
+
+-> Gäst som äter 
+
+-> Gäst som dricker
+
+-> Waiter som går med mat / dryck

@@ -20,7 +20,7 @@ import ImagesManager from "./ImagesManager.js";
  * @property {{}} [state] Custom state to the art instance
  */
 
-const FRAME_RATE_DEFAULT = 120; 
+const FRAME_RATE_DEFAULT = 60; 
 const CANVAS_SELECTOR_DEFAULT = "canvas";
 
 

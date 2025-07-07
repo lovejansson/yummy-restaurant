@@ -65,6 +65,7 @@ export default class AnimationManager {
      */
     play(key) {
 
+
         const animation = this.animations.get(key);
 
         if (!animation) throw new AnimationNotAddedError(key);
@@ -156,29 +157,24 @@ export default class AnimationManager {
 
             if(this.playingAnimation.config.type === "frames") {
                 const image = this.sprite.scene.art.images.get(this.playingAnimation.config.frames[this.playingAnimation.currentIndex].image);
-
                 ctx.drawImage(image, 
                     this.playingAnimation.currentIndex * (this.sprite.width), 
                     0, 
                     this.sprite.width, 
                     this.sprite.height, 
                     this.sprite.pos.x, 
-                   this.sprite.pos.y - (this.sprite.height / 2), 
+                   this.sprite.pos.y, 
                     this.sprite.width, 
                     this.sprite.height);
             } else if (this.playingAnimation.config.type === "spritesheet") {
-    
                 const image = this.sprite.scene.art.images.get(this.playingAnimation.config.frames);
-
-                const frameWidth = image.width / this.playingAnimation.config.numberOfFrames;
-
                 ctx.drawImage(image,
-                    this.playingAnimation.currentIndex * frameWidth,
+                    this.playingAnimation.currentIndex * this.sprite.width,
                     0,
-                    frameWidth,
-                    image.height,
+                    this.sprite.width,
+                    this.sprite.height,
                     this.sprite.pos.x,
-                    this.sprite.pos.y - (this.sprite.height / 2), 
+                    this.sprite.pos.y, 
                     this.sprite.width,
                     this.sprite.height);
             }

@@ -157,7 +157,7 @@ export default class MessagesManager {
     #messages;
 
     constructor() {
-        this.messages = new Map();
+        this.#messages = new Map();
     }
 
     /**

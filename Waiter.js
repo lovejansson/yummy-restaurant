@@ -36,7 +36,7 @@ class Waiting extends LifeCycleState {
      * @param {Waiter} waiter 
      */
     init(waiter) {
-        waiter.direction = "front";
+        waiter.direction = "s";
         waiter.actionState = new Idle();
     }
 
@@ -45,10 +45,11 @@ class Waiting extends LifeCycleState {
      */
     update(waiter) {
 
-        const event = waiter.scene.art.config.services.eventsManager.next();
+        const event = waiter.scene.art.config.services.events.next();
 
         if (event !== undefined) {
-            switch (event.data.type) {
+            console.log("Waiter got event ", event);
+            switch (event.name) {
                 case "order-food":
                     waiter.lifeCycleState = new TakingOrder("food");
                     break;
@@ -59,7 +60,8 @@ class Waiting extends LifeCycleState {
                     waiter.lifeCycleState = new TakingOrder("bill");
                     break;
                 case "arrive":
-                    waiter.lifeCycleState = new Welcoming();
+                    waiter.lifeCycleState = new Welcoming(event.data.guest, {x: event.data.pos.x + 16, y: event.data.pos.y}); // Walk to infront of the guest.
+                    waiter.lifeCycleState.init(waiter);
                     break;
                 case "order-ready":
                     const order = waiter.scene.orders.find(o => o.id === event.data.orderId);
@@ -68,12 +70,10 @@ class Waiting extends LifeCycleState {
                         console.error("Order for event order-ready with id " + event.data.orderId + " not found :|||");
                         break;
                     }
-
                     waiter.lifeCycleState = new Serving(order);
                     break;
             }
         }
-
     }
 }
 
@@ -107,14 +107,16 @@ class Welcoming {
 
         switch(this.currGoal) {
             case "guest":
+            
                 if(waiter.isWalking()) {
+       
                     if(waiter.actionState.hasReachedGoal()) {
                         waiter.actionState = new Idle();
                         waiter.messageBubble.showMessage(phrases.welcomeGuest(this.guests.length));
                     }
                 } else if (waiter.messageBubble.shouldHide()) {
                     
-                    const table = this.scene.tables.filter(t => t.isAvailable).random();
+                    const table = waiter.scene.tables.filter(t => t.isAvailable).random();
                     waiter.messageBubble.hideMessage();
                     waiter.actionState = new Walking(table.pos);
                     this.currGoal = "table";
@@ -320,6 +322,7 @@ class Walking extends ActionState {
     path;
 
     constructor(goal) {
+        super();
         this.goal = goal;
         this.path = null;
     }
@@ -328,12 +331,25 @@ class Walking extends ActionState {
      * @param {Waiter} waiter 
      */
     update(waiter) {
+
+        if(!waiter.animations.isPlaying(`walk-${waiter.direction}`)) {
+            waiter.animations.play(`walk-${waiter.direction}`);
+        }
         
         if (this.path === null) {
             this.path = new WalkPath(waiter, waiter.pos, this.goal);
         }
-
+        
+    
         this.path.update(waiter);
+
+        waiter.pos = this.path.getPos();
+        
+        waiter.animations.update();
+    }
+
+    hasReachedGoal() {
+       return  this.path.hasReachedGoal
     }
 }
 
@@ -344,6 +360,7 @@ class Idle extends ActionState {
      */
     update(waiter) {
         if (!waiter.animations.isPlaying(`idle-${waiter.direction}`)) {
+
             waiter.animations.play(`idle-${waiter.direction}`);
         }
     }
@@ -377,20 +394,40 @@ export default class Waiter extends Sprite {
      * @param {string} who
      */
     constructor(scene, id, pos, width, height, who) {
+
         super(scene, id, pos, width, height);
 
         this.messageBubble = new MessageBubble();
         this.lifeCycleState = new Waiting();
-        this.who = "blond-guy";
+        this.lifeCycleState.init(this);
 
-        this.animations.create("front", {type: "spritesheet", frames: `waiter-${who}.png`, frameRate: 100, numberOfFrames: 8, startIdx:0 });
-        this.animations.create("front-carry", {type: "spritesheet", frames: `waiter-${who}-carry.png`, frameRate: 100, numberOfFrames: 8, startIdx:0 });
-        this.animations.create("back",  {type: "spritesheet", frames: `waiter-${who}.png`, frameRate: 100, numberOfFrames: 8, startIdx: 8 });
-        this.animations.create("back-carry",  {type: "spritesheet", frames: `waiter-${who}-carry.png`, frameRate: 100, numberOfFrames: 8, startIdx:8 });
-        this.animations.create("right",  {type: "spritesheet", frames: `waiter-${who}.png`, frameRate: 100, numberOfFrames: 8, startIdx: 16 });
-        this.animations.create("right-carry",  {type: "spritesheet", frames: `waiter-${who}-carry.png`, frameRate: 100, numberOfFrames: 8, startIdx:16 });
-        this.animations.create("left",  {type: "spritesheet", frames: `waiter-${who}.png`, frameRate: 100, numberOfFrames: 8, startIdx: 24 });
-        this.animations.create("left-carry",  {type: "spritesheet", frames: `waiter-${who}-carry.png`, frameRate: 100, numberOfFrames: 8, startIdx:24 });
+        this.animations.create("walk-s", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 0 });
+        this.animations.create("walk-se", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 4 });
+        this.animations.create("walk-e", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 8 });
+        this.animations.create("walk-ne", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 12 });
+        this.animations.create("walk-n", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 16});
+        this.animations.create("walk-nw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 20});
+        this.animations.create("walk-w", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 24});
+        this.animations.create("walk-sw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 28});
+
+        this.animations.create("idle-s", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 0 });
+        this.animations.create("idle-se", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 4 });
+        this.animations.create("idle-e", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 8 });
+        this.animations.create("idle-ne", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 12 });
+        this.animations.create("idle-n", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 16});
+        this.animations.create("idle-nw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 20});
+        this.animations.create("idle-w", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 24});
+        this.animations.create("idle-sw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 28});
+
+        // this.who = "blond-guy";
+        // this.animations.create("front", {type: "spritesheet", frames: `waiter-${who}.png`, frameRate: 100, numberOfFrames: 8, startIdx:0 });
+        // this.animations.create("front-carry", {type: "spritesheet", frames: `waiter-${who}-carry.png`, frameRate: 100, numberOfFrames: 8, startIdx:0 });
+        // this.animations.create("back",  {type: "spritesheet", frames: `waiter-${who}.png`, frameRate: 100, numberOfFrames: 8, startIdx: 8 });
+        // this.animations.create("back-carry",  {type: "spritesheet", frames: `waiter-${who}-carry.png`, frameRate: 100, numberOfFrames: 8, startIdx:8 });
+        // this.animations.create("right",  {type: "spritesheet", frames: `waiter-${who}.png`, frameRate: 100, numberOfFrames: 8, startIdx: 16 });
+        // this.animations.create("right-carry",  {type: "spritesheet", frames: `waiter-${who}-carry.png`, frameRate: 100, numberOfFrames: 8, startIdx:16 });
+        // this.animations.create("left",  {type: "spritesheet", frames: `waiter-${who}.png`, frameRate: 100, numberOfFrames: 8, startIdx: 24 });
+        // this.animations.create("left-carry",  {type: "spritesheet", frames: `waiter-${who}-carry.png`, frameRate: 100, numberOfFrames: 8, startIdx:24 });
 
     }
 
@@ -399,15 +436,15 @@ export default class Waiter extends Sprite {
     }
     
     isIdle() {
-        return this.movingState instanceof Idle;
+        return this.actionState instanceof Idle;
     }
 
     isWalking() {
-        return this.movingState instanceof Walking;
+        return this.actionState instanceof Walking;
     }
 
    update() {
         this.lifeCycleState.update(this);
-        this.movingState.update(this);
+        this.actionState.update(this);
     }
 }

@@ -3,14 +3,12 @@ import { createGrid, drawGrid, createPathAStar } from "./path.js";
 import Waiter from "./Waiter.js";
 import { BASE_URL } from "./config.js";
 import Table from "./Table.js";
+import Guest from "./Guest.js";
 
 export default class Play extends Scene {
 
     constructor() {
-
         super();
-
-        this.waiter = new Waiter("waiter1", { x: 0, y: 2 * 16 }, 16, 16);
         this.tables = [];
         this.idleSpots = [];
     }
@@ -20,6 +18,8 @@ export default class Play extends Scene {
 
         this.art.images.add("table", `${BASE_URL}images/table.png`);
         this.art.images.add("background", `${BASE_URL}images/background.png`);
+        this.art.images.add("waiter-afro-walk", `${BASE_URL}images/waiter-afro-walk.png`);
+        this.art.images.add("granny-walk", `${BASE_URL}images/granny-walk.png`);
         
         await this.art.images.load();
        
@@ -28,6 +28,11 @@ export default class Play extends Scene {
         this.#createTables();
         this.#createIdleSpots();
         this.#createGrid();
+
+        this.waiter = new Waiter(this, Symbol("waiter"),this.idleSpots.random(), 15, 32, "afro");
+
+        this.guest = new Guest(this, Symbol("guest"), { x: 0, y: 16 * 7}, 15, 32, "left");
+
         this.isInitialized = true;
     }
 
@@ -44,6 +49,9 @@ export default class Play extends Scene {
         } else if (this.art.keys.space) {
             console.log("space")
         }
+
+        this.waiter.update();
+        this.guest.update();
     }
 
     /**
@@ -88,6 +96,9 @@ export default class Play extends Scene {
             }
 
         }
+
+        this.waiter.draw(ctx);
+        this.guest.draw(ctx)
     }
 
 
@@ -136,8 +147,8 @@ export default class Play extends Scene {
     }
 
     #createIdleSpots() {
-        for (let c = 0; c < 3; ++c) {
-            this.idleSpots.push({ x: c * 32, y: 2 * 32, isAvailable: true });
+        for (let c = 8; c < 12; ++c) {
+            this.idleSpots.push({ x: c * 16, y: 2 * 16, isAvailable: true });
         }
     }
 

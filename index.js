@@ -5,7 +5,6 @@ import Pause from "./Pause.js";
 import EventsManager from "./EventsManager.js";
 import MessagesManager from "./message.js";
 
-
 const art = new Art({ 
     pause: new Pause(),
     play: new Play(),
@@ -17,7 +16,6 @@ const art = new Art({
 
 art.play();
    
-
 const musicPlayerEl = document.querySelector("music-player");
 
 musicPlayerEl.addEventListener("play", () => {

@@ -104,6 +104,7 @@ function createPathBFS(start, end, grid) {
  */
 function createPathAStar(start, end, grid) {
 
+
     if(grid[start.row][start.col] === 1 ) throw new Error("Start cell is a non walkable cell.");
     if(grid[end.row][end.col] === 1) throw new Error("End cell is a non walkable cell.");
 

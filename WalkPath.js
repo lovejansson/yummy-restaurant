@@ -1,9 +1,19 @@
 import { createPathAStar } from "./path.js";
 
 
+
+// Get direction diff for x and why and use that as index to get label for direction. directionLables[y + 1][x + 1]
+const directionLables = 
+[
+    ["nw", "n", "new"],
+    ["w", "curr", "e"],
+    ["sw", "s", "se"]
+]
+
 /**
  * A path that a sprite can walk on. Handles creation of path on the grid and updating of position (x,y).
- * You need to create a new instance whenever a sprite should walk on a path. 
+ * You need to create a new instance whenever a sprite should walk on a path.
+ * Supports 8 directional walks.  
  */
 export class WalkPath extends EventTarget {
 
@@ -17,32 +27,34 @@ export class WalkPath extends EventTarget {
     constructor(sprite, start, end){
         super();
 
-        this.#path = createPathAStar(start, end, sprite.scene.grid);
+        this.sprite = sprite;
+        this.#path = createPathAStar({row: start.y / 16, col: start.x / 16}, {row: end.y / 16, col: end.x / 16}, sprite.scene.grid);
 
          for(const cell of this.#path) {
             this.sprite.scene.grid[cell.row][cell.col] = 4; // Tiles in path is occupied by this sprite walkpath right now
         }
 
-        this.#currPos = {x: start.col * 16, y: start.row * 16};
+        this.#currPos = {x: start.x, y: start.y};
         this.#currPixelDiff = 0;
         this.#currCellIdx = 0;
     }
 
     update() {
-        this.#updatePosition();
+        // TODO: synka updates med användaren. 
+        if(!this.hasReachedGoal) {
+            this.#updatePosition();
 
-        if (this.#currPixelDiff === 16) {
-            this.dispatchEvent(new CustomEvent("next-cell", {detail: {index: this.#currCellIdx}}));
-            this.#updateNextCell();
-            this.#currPixelDiff = 0;
-        } 
+            if (this.#currPixelDiff === 16) {
+                this.#updateNextCell();
+                this.#currPixelDiff = 0;
+            } 
+        }
+        
     }
 
-
-    getPositionXY() {
+    getPos() {
         return this.#currPos;
     }
-
 
     #updateNextCell() {
         this.#currCellIdx++;
@@ -51,63 +63,31 @@ export class WalkPath extends EventTarget {
             for(const cell of this.#path) {
                 this.sprite.scene.grid[cell.row][cell.col] = 0; // Tile not occupied for sprite anymore
             }
+            
+        } else {
+            this.dispatchEvent(new CustomEvent("next-cell", {detail: {index: this.#currCellIdx}}));
+            const diff = this.#calculateXYUpdateDiff();
+            const dir = directionLables[diff.y + 1][diff.x + 1];
+            this.sprite.direction = dir;
         }
     }
 
-    
-    #getCurrDir() {
+    #calculateXYUpdateDiff() {
         const currCell = this.#path[this.#currCellIdx];
 
         if (this.#currCellIdx === this.#path.length - 1) {
             const prev = this.#path[this.#currCellIdx - 1];
-            return this.#getDirection(prev, currCell);
+            return { y: currCell.row - prev.row, x: currCell.col - prev.col};
         } else {
             const next = this.#path[this.#currCellIdx + 1];
-            return this.#getDirection(currCell, next);
+            return { x: next.col - currCell.col, y: next.row - currCell.row};
         } 
     }
 
-
     #updatePosition() {
-
-        const currDir = this.#getCurrDir();
-
-        switch (currDir) {
-            case "north":
-                this.#currPos = { x: this.#currPos.x, y: this.#currPos.y - 1 };
-                break;
-            case "east":
-                this.#currPos = { x: this.#currPos.x + 1, y: this.#currPos.y };
-                break;
-            case "south":
-                this.#currPos = { x: this.#currPos.x, y: this.#currPos.y + 1 };
-                break;
-            case "west":
-                this.#currPos = { x: this.#currPos.x - 1, y: this.#currPos.y };
-                break;
-        }
-
+        const diff = this.#calculateXYUpdateDiff();
+        this.#currPos = { x: this.#currPos.x + diff.x, y: this.#currPos.y + diff.y};
         this.#currPixelDiff++;
     }
 
-
-    #getDirection(from, to) {
-
-        const rowDiff = to.row - from.row;
-        const colDiff = to.col - from.col;
-
-        if (rowDiff === 0) {
-            if (colDiff > 0) {
-                return "east";
-            }
-    
-            return "west";
-        }
-
-        if (rowDiff > 0) {
-            return "south";
-        }
-        
-        return "north";
-    }
 }
