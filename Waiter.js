@@ -48,20 +48,21 @@ class Waiting extends LifeCycleState {
         const event = waiter.scene.art.config.services.events.next();
 
         if (event !== undefined) {
-            console.log("Waiter got event ", event);
+            
+            console.log("Event received by waiter: ", event);
+
             switch (event.name) {
                 case "order-food":
-                    waiter.lifeCycleState = new TakingOrder("food");
+                    waiter.lifeCycleState = new TakingOrder("food", event.data.tableId);
                     break;
                 case "order-dessert":
-                    waiter.lifeCycleState = new TakingOrder("dessert");
+                    waiter.lifeCycleState = new TakingOrder("dessert",  event.data.tableId);
                     break;
-                case "bill":
-                    waiter.lifeCycleState = new TakingOrder("bill");
+                case "order-bill":
+                    waiter.lifeCycleState = new TakingOrder("bill",  event.data.tableId);
                     break;
                 case "arrive":
-                    waiter.lifeCycleState = new Welcoming(event.data.guest, {x: event.data.pos.x + 16, y: event.data.pos.y}); // Walk to infront of the guest.
-                    waiter.lifeCycleState.init(waiter);
+                    waiter.lifeCycleState = new Welcoming(event.data.guests, {x: waiter.scene.GUESTS_ARRIVAL_POS.x + 16, y: waiter.scene.GUESTS_ARRIVAL_POS.y + 16 * event.data.guests.length / 2}); 
                     break;
                 case "order-ready":
                     const order = waiter.scene.orders.find(o => o.id === event.data.orderId);
@@ -70,6 +71,7 @@ class Waiting extends LifeCycleState {
                         console.error("Order for event order-ready with id " + event.data.orderId + " not found :|||");
                         break;
                     }
+
                     waiter.lifeCycleState = new Serving(order);
                     break;
             }
@@ -80,23 +82,25 @@ class Waiting extends LifeCycleState {
 /**
  * The waiter will walk to the guest, say welcome and then escort them to a table. 
  */
-class Welcoming {
+class Welcoming extends LifeCycleState {
 
     /**
      * @param {Symbol[]} guests
      * @param {{x: number, y: number}} pos
      */
     constructor(guests, pos) {
+        super();
         this.guests = guests;
         this.pos = pos;
-        this.currGoal = "guest"
-        this.lastNotifiedIdx = null;
+        this.currGoal = "guest";
+        this.lastGuestNotifiedIdx = 0;
     }
 
     /**
      * @param {Waiter} waiter 
      */
     init(waiter) {
+        console.log("Welcoming guests");
         waiter.actionState = new Walking(this.pos);
     }
 
@@ -107,18 +111,17 @@ class Welcoming {
 
         switch(this.currGoal) {
             case "guest":
-            
                 if(waiter.isWalking()) {
        
-                    if(waiter.actionState.hasReachedGoal()) {
+                    if(waiter.actionState.path.hasReachedGoal) {
                         waiter.actionState = new Idle();
                         waiter.messageBubble.showMessage(phrases.welcomeGuest(this.guests.length));
                     }
+
                 } else if (waiter.messageBubble.shouldHide()) {
-                    
-                    const table = waiter.scene.tables.filter(t => t.isAvailable).random();
+                    const table = waiter.scene.pickTableForGuests(this.guests);
                     waiter.messageBubble.hideMessage();
-                    waiter.actionState = new Walking(table.pos);
+                    waiter.actionState = new Walking(table.corners[1]);
                     this.currGoal = "table";
                 }
 
@@ -135,33 +138,35 @@ class Welcoming {
                      * TODO: fixca med gästens placeringar enligt bordets palcering. 
                      * 
                      */
-                    
+          
                     // Notify the guests to follow the waiter towards the same table
-                    if((this.lastNotifiedIdx === null || waiter.actionState.cellCount === this.lastNotifiedIdx - 1) && waiter.actionState.cellCount <= this.guests.length - 1) {
-                        this.lastNotifiedIdx = waiter.actionState.cellCount;
-                        waiter.scene.art.services.messages.send({data: table.pos}, waiter.id, this.guests[this.lastNotifiedIdx]);
+                    if(this.lastGuestNotifiedIdx < this.guests.length && 
+                        waiter.actionState.path.getCellCount() !== this.lastGuestNotifiedIdx) {
+                 
+                        waiter.scene.art.services.messages.send({data: null}, waiter.id, this.guests[this.lastGuestNotifiedIdx]);
+                        this.lastGuestNotifiedIdx = waiter.actionState.path.getCellCount();
+                       
                     }
 
-                    if(waiter.actionState.hasReachedGoal()) {
+                    if(waiter.actionState.path.hasReachedGoal) {
                         waiter.actionState = new Idle();
                     }
 
                 } else if (waiter.isIdle()) {
 
-                    const guestNotIdle = this.guests.find(g => waiter.scene.objects.find(o => o.id === g).isWalking());
+                    const allGuestsAreSeated = this.guests.every(gId => waiter.scene.guests.find(g => g.id === gId).isIdleSitting());
 
-                    if(guestNotIdle === undefined) {
+                    if(allGuestsAreSeated) {
                         waiter.messageBubble.showMessage(phrases.menuComment());
+                        waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random());
+                        this.currGoal = "idle-spot";
                     }
-
-                    waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random());
-                    this.currGoal = "idle-spot";
                 }
 
                 break;
             case "idle-spot":
-                if(waiter.isWalking() && waiter.actionState.hasReachedGoal()) {
-                      waiter.lifeCycleState = new Waiting();
+                if(waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
+                    waiter.lifeCycleState = new Waiting();
                 } 
                 break;
         }
@@ -169,26 +174,25 @@ class Welcoming {
 }
 
 
-class TakingOrder {
+class TakingOrder extends LifeCycleState{
      /**
      * @param {"food" | "dessert" | "bill"} type
-     * @param {Symbol[]} guests
-     * @param {Symbol} table
+     * @param {Symbol} tableId
      */
-    constructor(type, guests, tableId) {
+    constructor(type, tableId) {
+        super();
         this.type = type;
-        this.guests = guests;
         this.hasTakenOrder = false;
-        this.order = {id: new Symbol("order"), tableId, orders: []};
-        this.orderCount = null;
+        this.order = {id: Symbol("order"), tableId, orders: []};
+        this.orderCount = 0;
     }
 
     /**
      * @param {Waiter} waiter 
      */
     init(waiter) {
-        const pos = waiter.scene.tables.find(t => t.id === this.table).pos;
-        waiter.actionState = new Walking(pos);
+        console.log("TAKING AN ORDER", this.type);
+        waiter.actionState = new Walking(waiter.scene.tables.find(t => t.id === this.order.tableId).corners[0]);
     }
 
    /**
@@ -197,47 +201,44 @@ class TakingOrder {
     update(waiter) {
 
         if(this.hasTakenOrder) {
-            if(waiter.isWalking() && waiter.actionState.hasReachedGoal()) {
+            if(waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
                   waiter.lifeCycleState = new Waiting();
             }
 
         } else {
 
             if(waiter.isWalking()) {
-                if(waiter.actionState.hasReachedGoal()) {
+                if(waiter.actionState.path.hasReachedGoal) {
                     waiter.actionState = new Idle();
                     waiter.messageBubble.showMessage(phrases.takingOrder(this.type));
                 }
                 
-            // TODO: mark out dialogs with ids to know what the other person actually said or wich phrase it is
-
             } else if (waiter.messageBubble.shouldHide()) {
                 waiter.messageBubble.hideMessage();
-                this.orderCount = 0;
-                waiter.scene.art.services.messages.send(phrases.takingOrder(this.type), waiter.id, this.guests[this.orderCount]);
-            
-            
+                waiter.scene.art.services.messages.send(phrases.takingOrder(this.type), waiter.id, waiter.scene.getGuestsAt(this.order.tableId)[this.orderCount]);
             } else  {
 
                 const message =  waiter.scene.art.services.messages.receive(waiter.id);
 
                 if(message !== undefined) {
+                    this.order.orders.push({guestId: message.from, items: message.content.items});
 
-                    this.order.orders.push({guest: message.from, items: message.data});
 
-                    if(this.order.orders.length === this.guests.length) {
+                    if(this.type === "bill" || this.order.orders.length === waiter.scene.getGuestsAt(this.order.tableId).length) {
 
                         this.hasTakenOrder = true;
 
-                        waiter.scene.orders.push(this.order);
-
+                        waiter.scene.orders.push(this.order); 
+   
+                        // After 5 min the order is ready to pick up 
                         setTimeout(() => {
-                            waiter.scene.art.services.events.add({name: "order-ready", data: this.order.id});
-                        }, 1000 * 60  * 5);
+                            waiter.scene.art.services.events.add({name: "order-ready", data: {orderId: this.order.id}});
+                        }, 1000 * 5);
 
                         waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random());
+
                     } else {
-                        waiter.scene.art.services.messages.send(phrases.takingOrder(this.type), waiter.id, this.guests[this.orderCount]);
+                        waiter.messageBubble.showMessage(phrases.takingOrder(this.type));
                         this.orderCount++;
                     }
                 }   
@@ -249,7 +250,7 @@ class TakingOrder {
 
 /**
  * @typedef TableOrder
- * @property {"food" | "dessert"} type
+ * @property {"food" | "dessert" | "bill"} type
  * @property {Symbol} orderId
  * @property {Symbol} tableId
  * @property {Order[]} orders
@@ -275,9 +276,8 @@ class Serving {
      * @param {Waiter} waiter 
      */
     init(waiter) {
-        // walk to table, stand idle, say here you go, walk away
-        const pos = waiter.scene.tables.find(t => t.id === this.order.tableId).pos;
-        waiter.actionState = new Walking(pos);
+        console.log("Serving")
+        waiter.actionState = new Walking(waiter.scene.tables.find(t => t.id === this.order.tableId).corners[0]);
     }
 
    /**
@@ -285,24 +285,27 @@ class Serving {
      */
     update(waiter) {
         if(this.hasServed) {
-            if(waiter.isWalking() && waiter.actionState.hasReachedGoal()) {
+            if(waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
                 waiter.lifeCycleState = new Waiting();
             }
         } else {
             if(waiter.isWalking()) {
-                if(waiter.actionState.hasReachedGoal()) {
+                if(waiter.actionState.path.hasReachedGoal) {
                     waiter.actionState = new Idle();
                     waiter.messageBubble.showMessage(phrases.givingOrder(this.order.type));
                 }
             } else if (waiter.messageBubble.shouldHide()) {
+
                 waiter.messageBubble.hideMessage();
 
+                // Tell all guests that their order is ready 
                 for(const o of this.order.orders) {
-                    waiter.scene.art.services.messages.send({items}, waiter.id, o.guestId); // TODO: dialog id?
+      
+                    waiter.scene.art.services.messages.send({items: o.items}, waiter.id, o.guestId); 
                 }
           
                 this.hasServed = true;
-                waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isFree()).random());
+                waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random());
             }
         }
     }
@@ -337,19 +340,13 @@ class Walking extends ActionState {
         }
         
         if (this.path === null) {
-            this.path = new WalkPath(waiter, waiter.pos, this.goal);
+
+            this.path = new WalkPath(waiter, this.goal);
         }
         
-    
         this.path.update(waiter);
-
         waiter.pos = this.path.getPos();
-        
         waiter.animations.update();
-    }
-
-    hasReachedGoal() {
-       return  this.path.hasReachedGoal
     }
 }
 
@@ -377,7 +374,7 @@ export default class Waiter extends Sprite {
     /**
      * @type {LifeCycleState}
      */
-    lifeCycleState;
+    #lifeCycleState;
 
     /**
      * @type {ActionState}
@@ -398,26 +395,26 @@ export default class Waiter extends Sprite {
         super(scene, id, pos, width, height);
 
         this.messageBubble = new MessageBubble();
-        this.lifeCycleState = new Waiting();
-        this.lifeCycleState.init(this);
+        this.#lifeCycleState = new Waiting();
+        this.#lifeCycleState.init(this);
 
-        this.animations.create("walk-s", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 0 });
-        this.animations.create("walk-se", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 4 });
-        this.animations.create("walk-e", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 8 });
-        this.animations.create("walk-ne", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 12 });
-        this.animations.create("walk-n", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 16});
-        this.animations.create("walk-nw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 20});
-        this.animations.create("walk-w", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 24});
-        this.animations.create("walk-sw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 28});
+        this.animations.create("walk-s", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 0, loop: true });
+        this.animations.create("walk-se", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 4 , loop: true});
+        this.animations.create("walk-e", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 8 , loop: true});
+        this.animations.create("walk-ne", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 12, loop: true });
+        this.animations.create("walk-n", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 16, loop: true});
+        this.animations.create("walk-nw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 20, loop: true});
+        this.animations.create("walk-w", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 24, loop: true});
+        this.animations.create("walk-sw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 28, loop: true});
 
-        this.animations.create("idle-s", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 0 });
-        this.animations.create("idle-se", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 4 });
-        this.animations.create("idle-e", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 8 });
-        this.animations.create("idle-ne", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 12 });
-        this.animations.create("idle-n", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 16});
-        this.animations.create("idle-nw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 20});
-        this.animations.create("idle-w", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 24});
-        this.animations.create("idle-sw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 500, numberOfFrames: 1, startIdx: 28});
+        this.animations.create("idle-s", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 0 , loop: true});
+        this.animations.create("idle-se", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 4 , loop: true});
+        this.animations.create("idle-e", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 8 , loop: true});
+        this.animations.create("idle-ne", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 12, loop: true });
+        this.animations.create("idle-n", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 16, loop: true});
+        this.animations.create("idle-nw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 20, loop: true});
+        this.animations.create("idle-w", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 24, loop: true});
+        this.animations.create("idle-sw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 28, loop: true});
 
         // this.who = "blond-guy";
         // this.animations.create("front", {type: "spritesheet", frames: `waiter-${who}.png`, frameRate: 100, numberOfFrames: 8, startIdx:0 });
@@ -431,6 +428,15 @@ export default class Waiter extends Sprite {
 
     }
 
+    
+    /**
+     * @param {LifeCycleState} state
+     */
+    set lifeCycleState(state) {
+        this.#lifeCycleState = state;
+        this.#lifeCycleState.init(this);
+    }
+
     getGridCellPosition() {
         return {row: this.pos.y / this.height, col: this.pos.x / this.width}
     }
@@ -441,6 +447,13 @@ export default class Waiter extends Sprite {
 
     isWalking() {
         return this.actionState instanceof Walking;
+    }
+
+    getGridPos() {
+        return {
+            col: Math.floor(this.pos.x / this.scene.art.tileSize),
+            row: Math.floor(this.pos.y / this.scene.art.tileSize)
+        };
     }
 
    update() {

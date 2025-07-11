@@ -5,6 +5,7 @@
  * @property {number} price - The price of the menu item.
  */
 
+
 /**
  * @typedef Menu
  * @property {MenuItem[]} drinks - The drinks menu.

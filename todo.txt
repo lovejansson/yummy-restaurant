@@ -15,3 +15,8 @@
 -> Gäst som dricker
 
 -> Waiter som går med mat / dryck
+
+Arrive event när ett sällskap kommer görs i Play scenen 
+
+Order event borde också ske för sällskapet i sig inte för en enskild gäst 
+så när gästerna äter måste de synka state för om de ska ske en order eller om de ska gå etc. 

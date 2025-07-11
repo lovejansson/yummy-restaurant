@@ -23,6 +23,7 @@
  * @property {number} [startIdx]
  */
 
+
 /**
  * @description Manages the animations for a sprite.
  */
@@ -119,12 +120,14 @@ export default class AnimationManager {
                 this.playingAnimation.frameCount++;
 
             } else if (this.playingAnimation.config.type === "spritesheet") {
-
-                 if (this.playingAnimation.frameCount >= Math.floor(this.playingAnimation.config.frameRate / (1000 / 60))) {
+                // 1000 / 60 = 16.67 ms per frame 
+                // 100 / 16.67 = 5.99 update frames in art cycle per sprite frame 
+                 if (this.playingAnimation.frameCount >= Math.floor(this.playingAnimation.config.frameRate / (1000 / this.sprite.scene.art.frameRate))) {
                 
                     if (this.playingAnimation.config.numberOfFrames - 1 === this.playingAnimation.currentIndex - this.playingAnimation.config.startIdx ) {
-
+        
                         if (!this.playingAnimation.config.loop) {
+            
                             this.playingAnimation = null;
                             return;
                         } else {

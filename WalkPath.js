@@ -1,11 +1,9 @@
 import { createPathAStar } from "./path.js";
 
-
-
 // Get direction diff for x and why and use that as index to get label for direction. directionLables[y + 1][x + 1]
 const directionLables = 
 [
-    ["nw", "n", "new"],
+    ["nw", "n", "ne"],
     ["w", "curr", "e"],
     ["sw", "s", "se"]
 ]
@@ -15,7 +13,7 @@ const directionLables =
  * You need to create a new instance whenever a sprite should walk on a path.
  * Supports 8 directional walks.  
  */
-export class WalkPath extends EventTarget {
+export class WalkPath {
 
     hasReachedGoal;
 
@@ -24,19 +22,21 @@ export class WalkPath extends EventTarget {
     #path;
     #currCellIdx;
 
-    constructor(sprite, start, end){
-        super();
-
+    constructor(sprite, goalPos) {
         this.sprite = sprite;
-        this.#path = createPathAStar({row: start.y / 16, col: start.x / 16}, {row: end.y / 16, col: end.x / 16}, sprite.scene.grid);
 
-         for(const cell of this.#path) {
+        this.#path = createPathAStar(sprite.getGridPos(), {row: Math.floor(goalPos.y / 16), col: Math.floor(goalPos.x / 16)}, sprite.scene.grid);
+
+        for(const cell of this.#path) {
             this.sprite.scene.grid[cell.row][cell.col] = 4; // Tiles in path is occupied by this sprite walkpath right now
         }
 
-        this.#currPos = {x: start.x, y: start.y};
+        this.#currPos = this.sprite.pos;
         this.#currPixelDiff = 0;
         this.#currCellIdx = 0;
+        const diff = this.#calculateXYUpdateDiff();
+        this.sprite.direction = directionLables[diff.y + 1][diff.x + 1];
+    
     }
 
     update() {
@@ -48,12 +48,15 @@ export class WalkPath extends EventTarget {
                 this.#updateNextCell();
                 this.#currPixelDiff = 0;
             } 
-        }
-        
+        } 
     }
 
     getPos() {
         return this.#currPos;
+    }
+
+    getCellCount(){
+        return this.#currCellIdx; 
     }
 
     #updateNextCell() {
@@ -65,10 +68,8 @@ export class WalkPath extends EventTarget {
             }
             
         } else {
-            this.dispatchEvent(new CustomEvent("next-cell", {detail: {index: this.#currCellIdx}}));
             const diff = this.#calculateXYUpdateDiff();
-            const dir = directionLables[diff.y + 1][diff.x + 1];
-            this.sprite.direction = dir;
+            this.sprite.direction = directionLables[diff.y + 1][diff.x + 1];
         }
     }
 

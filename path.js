@@ -26,7 +26,8 @@ const getNeighbours = (cell, grid, includeDiagonalNeighbours = false) => {
     for(const [r, c] of neighbourDiffs) {
         const neighbour = {row: cell.row + r, col: cell.col + c};
       
-        if(neighbour.row !== -1 && neighbour.col !== -1 && neighbour.row !== rows -1 && neighbour.col !== cols -1 && grid[neighbour.row][neighbour.col] === 0) neighbours.push(neighbour);     
+        if(neighbour.row !== -1 && neighbour.col !== -1 && neighbour.row !== rows - 1 && neighbour.col !== cols - 1 
+          ) neighbours.push(neighbour);     
     }
 
     return neighbours;
@@ -103,10 +104,11 @@ function createPathBFS(start, end, grid) {
  * @returns {Cell[]} path, array of grid cells 
  */
 function createPathAStar(start, end, grid) {
-
-
-    if(grid[start.row][start.col] === 1 ) throw new Error("Start cell is a non walkable cell.");
-    if(grid[end.row][end.col] === 1) throw new Error("End cell is a non walkable cell.");
+    //  console.log("Creating path from " + JSON.stringify(start) + " to " + JSON.stringify(end));
+    // console.log(grid[start.row][start.col], grid[end.row][end.col]);
+    
+    // if(grid[start.row][start.col] === 1 ) throw new Error("Start cell is a non walkable cell.");
+    // if(grid[end.row][end.col] === 1) throw new Error("End cell is a non walkable cell.");
 
     const rows = grid.length;
     const cols = grid[0].length;
@@ -116,13 +118,16 @@ function createPathAStar(start, end, grid) {
     const reconstructPath = (pathMap) => {
 
         let curr = end;
-
         let path = [end];
 
-        while (!(curr.row === start.row && curr.col === start.col)) {
+        while ( curr !== null && start !== null && !(curr.row === start.row && curr.col === start.col)) {
            
             curr = pathMap[curr.row][curr.col];
-            path.push(curr);
+
+            if(curr) {
+                path.push(curr);
+            }
+          
         }
 
         return path.reverse();
@@ -142,7 +147,6 @@ function createPathAStar(start, end, grid) {
     let curr;
 
     while(openList.length > 0) {
-     
         // Find cell with lowest score in the openList bc this is the most optimal path to take
         curr = openList.reduce((cellMinScore, curr) => {
             if(cellMinScore === undefined 
@@ -163,7 +167,7 @@ function createPathAStar(start, end, grid) {
 
         for(const n of neighbours) {
 
-            if(grid[n.row][n.col] > 0) continue; // obsticle cell 
+            if(grid[n.row][n.col] === 1) continue; // obsticle cell 
 
             const h = heuristic(n, end);
             const f = g + h;

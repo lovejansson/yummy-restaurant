@@ -1,18 +1,48 @@
 import { Scene, StaticImage } from "./pim-art/index.js";
-import { createGrid, drawGrid, createPathAStar } from "./path.js";
+import { createGrid, drawGrid } from "./path.js";
 import Waiter from "./Waiter.js";
 import { BASE_URL } from "./config.js";
 import Table from "./Table.js";
 import Guest from "./Guest.js";
 
+
 export default class Play extends Scene {
 
     constructor() {
         super();
+        this.orders = [];
         this.tables = [];
         this.idleSpots = [];
+        this.guestCompanies = [];
+        this.guestTablesRelation = [];
+        this.GUESTS_ARRIVAL_POS = { x: 0, y: 16 * 7 };
     }
 
+    guestLeft(guestId) {
+        this.guests.splice(this.guests.findIndex(g => g.id === guestId), 1);
+        this.getTableFor(guestId).isAvailable = true;
+        this.#createArrivingGuests();
+    }
+
+    pickTableForGuests(guests) {
+        const table = this.tables.filter(t => t.isAvailable).random();
+
+        for (const g of guests) {
+            this.guestTablesRelation.push({ guestId: g, tableId: table.id });
+        }
+        
+        table.isAvailable = false;
+
+        return table;
+    }
+
+    getTableFor(guestId) {
+        return this.tables.find(t => t.id === this.guestTablesRelation.find(r => r.guestId === guestId)?.tableId);
+    }
+
+    getGuestsAt(tableId) {
+        return this.guestTablesRelation.filter(r => r.tableId === tableId)?.map(r => r.guestId);
+    }
 
     async init() {
 
@@ -31,7 +61,7 @@ export default class Play extends Scene {
 
         this.waiter = new Waiter(this, Symbol("waiter"),this.idleSpots.random(), 15, 32, "afro");
 
-        this.guest = new Guest(this, Symbol("guest"), { x: 0, y: 16 * 7}, 15, 32, "left");
+        this.#createArrivingGuests(); 
 
         this.isInitialized = true;
     }
@@ -51,7 +81,10 @@ export default class Play extends Scene {
         }
 
         this.waiter.update();
-        this.guest.update();
+        
+        for(const g of this.guests) {
+            g.update();
+        }
     }
 
     /**
@@ -64,10 +97,10 @@ export default class Play extends Scene {
 
         ctx.fillStyle = "black";
 
-        const COLS = this.art.width / 16;
-        const ROWS = this.art.height / 16;
+        const COLS = this.art.width / this.art.tileSize;
+        const ROWS = this.art.height / this.art.tileSize;
 
-        drawGrid(ctx, ROWS, COLS, 16, 0, 32);
+        drawGrid(ctx, ROWS, COLS, this.art.tileSize, 0, 32);
 
         ctx.fillStyle = "red";
 
@@ -79,26 +112,21 @@ export default class Play extends Scene {
             }
         }
 
+
         for (const t of this.tables) {
             t.draw(ctx);
+    
+            for(const c of t.corners) {
+                this.grid[c.y / this.art.tileSize][c.x / this.art.tileSize] = 0; // Set table corners to walkable (0)
+            }
+            
         }
 
-        for (let i = 0; i < this.tables.length; ++i) {
-            const table = this.tables[i];
-    
-            const corner = {row: table.pos.y / 16 + 2, col: table.pos.x / 16 - 1};
-            const path = createPathAStar({row: 2, col: 9,}, corner, this.grid);
-            ctx.fillStyle = table.color ? table.color : ["blue", "green", "yellow", "pink"].random();
-            table.color = ctx.fillStyle;
-            for(const cell of path) {
-
-                ctx.fillRect(cell.col * 16, cell.row * 16, 16, 16);
-            }
-
+        for(const g of this.guests) {
+            g.draw(ctx);
         }
 
         this.waiter.draw(ctx);
-        this.guest.draw(ctx)
     }
 
 
@@ -140,17 +168,21 @@ export default class Play extends Scene {
         }
 
         for(const t of this.tables) {
-            const corner = {row: t.pos.y / 16 + 2, col: t.pos.x / 16 - 1};
-            this.grid[corner.row][corner.col] = 0;
+            
+            for(const c of t.corners) {
+                this.grid[c.y / this.art.tileSize][c.x / this.art.tileSize] = 0; // Set table corners to walkable (0)
+            }
         }
         
     }
+
 
     #createIdleSpots() {
         for (let c = 8; c < 12; ++c) {
             this.idleSpots.push({ x: c * 16, y: 2 * 16, isAvailable: true });
         }
     }
+
 
     #createTables() {
 
@@ -161,6 +193,91 @@ export default class Play extends Scene {
         this.tables.push(new Table(this, { x: 15 * tileSize, y: 4 * tileSize } ));
         this.tables.push(new Table(this, { x: 9 * tileSize, y: 7 * tileSize } ));
         this.tables.push(new Table(this, { x: 15 * tileSize, y: 10 * tileSize }));
+
+    }
+
+    #initGuests() {
+        for(let i = 0; i < this.tables.length - 1; ++i) {
+            this.#createArrivingGuests();
+        }
+
+        this.#createOrderingGuests();
+        this.#createEatingAndDrinkingGuests();
+        this.#createEatingAndDrinkingGuests();
+        this.#createArrivingGuests(); 
+    }
+
+    #createOrderingGuests() {
+        const numOfGuests = Math.ceil(Math.random() * 4);
+        const table = this.tables.find(t => t.isAvailable);
+
+        if(numOfGuests === 2) {
+                const guest1 = new Guest(this, Symbol("guest"), table.seats.s, 15, 32, 0);
+                guest1.lifeCycleState = new Order("food");
+                this.guests.push(guest1);
+                const guest2 = new Guest(this, Symbol("guest"), table.seats.n, 15, 32, 2);
+                guest2.lifeCycleState = new Order("food");
+                this.guests.push(guest2);
+        } else {
+            const startIdx = Math.min(4 - numOfGuests, Math.floor(Math.random() * 4));
+            
+            for (let i = startIdx; i < startIdx + numOfGuests; ++i) {
+                    const guest = new Guest(this, Symbol("guest"), table.seats[["n", "e", "s", "w"][i]], 15, 32, i);
+                    guest.lifeCycleState = new Order("dessert");
+                    this.guests.push(guest);
+            }
+        }
+
+        this.art.services.events.add({name: "arrive", data: {guests: this.guests.map(g => g.id)}});
+    }
+
+     #createEatingAndDrinkingGuests() {
+        const numOfGuests = Math.ceil(Math.random() * 4);
+        const table = this.tables.find(t => t.isAvailable);
+
+        if(numOfGuests === 2) {
+                const guest1 = new Guest(this, Symbol("guest"), table.seats.s, 15, 32, 0);
+                guest1.lifeCycleState = new EatingAndDrinking("food");
+                this.guests.push(guest1);
+                const guest2 = new Guest(this, Symbol("guest"), table.seats.n, 15, 32, 2);
+                guest2.lifeCycleState = new EatingAndDrinking("food");
+                this.guests.push(guest2);
+        } else {
+            const startIdx = Math.min(4 - numOfGuests, Math.floor(Math.random() * 4));
+            
+            for (let i = startIdx; i < startIdx + numOfGuests; ++i) {
+                    const guest = new Guest(this, Symbol("guest"), table.seats[["n", "e", "s", "w"][i]], 15, 32, i);
+                    guest.lifeCycleState = new EatingAndDrinking("food");
+                    this.guests.push(guest);
+            }
+        }
+
+        this.art.services.events.add({name: "arrive", data: {guests: this.guests.map(g => g.id)}});
+    }
+
+
+    #createArrivingGuests() {
+        const numOfGuests = Math.ceil(Math.random() * 4);
+
+        if(numOfGuests === 2) {
+                const guest1 = new Guest(this, Symbol("guest"), { x: this.GUESTS_ARRIVAL_POS.x, y: this.GUESTS_ARRIVAL_POS.y + this.art.tileSize }, 15, 32, 0);
+                guest1.lifeCycleState = new Arriving();
+                this.guests.push(guest1);
+
+                const guest2 = new Guest(this, Symbol("guest"), { x: this.GUESTS_ARRIVAL_POS.x, y: this.GUESTS_ARRIVAL_POS.y + this.art.tileSize}, 15, 32, 2);
+                guest2.lifeCycleState = new Arriving();
+                this.guests.push(guest2);
+        } else {
+            const startIdx = Math.min(4 - numOfGuests, Math.floor(Math.random() * 4));
+
+            for (let i = startIdx; i < startIdx + numOfGuests; ++i) {
+                const guest = new Guest(this, Symbol("guest"), { x: this.GUESTS_ARRIVAL_POS.x, y: this.GUESTS_ARRIVAL_POS.y + this.art.tileSize * i }, 15, 32, i);
+                guest.lifeCycleState = new Arriving();
+                this.guests.push(guest);
+            }
+        }
+
+        this.art.services.events.add({name: "arrive", data: {guests: this.guests.map(g => g.id)}});
     }
 
 }

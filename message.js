@@ -47,6 +47,9 @@ export const phrases = {
         return phrases[orderType]?.random() || "How can I assist you today?";
     },
 
+    askingForBill: () => ([
+        "Can we pay please?", "Can we have the bill please?"]).random(),       
+
     welcomeGuest: (numberOfGuests) => (["Welcome to The Yummy Restaurant! Follow me.", "Welcome!", 
         `Welcome to The Yummy Restaurant! A table for ${numberOfGuests}?.`, "Welcome!"].random()),
 
@@ -91,6 +94,11 @@ export const phrases = {
     },
 
     guestHasQuestion: "Hello, how can I help you?",
+
+    billComments: [
+        "How much should we tip?",
+        "Wanana split the bill?",
+    ],
 
     foodComments: [
         "This looks amazing!",
@@ -140,6 +148,10 @@ export const phrases = {
         "Nom nom nom!",
         "This is so good!",
     ],
+
+    menuComment: () => ["Please take a look at our menu.",
+        "Here’s our menu, take your time.",
+        ].random(),
 };
 
 
@@ -152,7 +164,7 @@ export const phrases = {
 export default class MessagesManager {
 
     /**
-     * @type {Map<Symbol, {message: Symbol, from: string}>}
+     * @type {Map<Symbol, {content: any, from: Symbol}>}
      */
     #messages;
 
@@ -161,16 +173,16 @@ export default class MessagesManager {
     }
 
     /**
-     * @param {string} msg 
+     * @param {any} msg 
      * @param {string} from 
      * @param {Symbol[] | Symbol} to 
      */
     send(msg, from, to) {
         if(typeof to === 'symbol') {
-            this.#messages.set(to, {message: msg, from});
+            this.#messages.set(to, {content: msg, from});
         } else {
             for(const t of to) {
-                this.#messages.set(t, {message: msg, from});
+                this.#messages.set(t, {content: msg, from});
             }
         }
     }

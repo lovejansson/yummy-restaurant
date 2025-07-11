@@ -11,6 +11,7 @@ import ImagesManager from "./ImagesManager.js";
  * 
  * @property {number} width Width of the art canvas
  * @property {number} height Height of the art canvas
+ * @property {tileSize} tileSize The size of each tile in the art canvas
  * @property {Scene} play The play scene
  * @property {Scene} pause The pause scene
  * @property {string} canvas The canvas css selector
@@ -22,6 +23,7 @@ import ImagesManager from "./ImagesManager.js";
 
 const FRAME_RATE_DEFAULT = 60; 
 const CANVAS_SELECTOR_DEFAULT = "canvas";
+const DEFAULT_TILE_SIZE = 16;
 
 
 /**
@@ -86,6 +88,7 @@ export default class Art {
         this.elapsedPrev = 0; 
         this.width = config.width;
         this.height = config.height;
+        this.tileSize = config.tileSize || DEFAULT_TILE_SIZE; // Default tile size is 16px
         this.state = config.state ? config.state : null;
         this.services = config.services ? config.services : null;
         this.keys = { 
@@ -95,6 +98,7 @@ export default class Art {
             left: false,
             space: false
         }
+        this.frameRate = config.frameRate || FRAME_RATE_DEFAULT; 
     }
 
 
@@ -133,7 +137,7 @@ export default class Art {
 
         this.elapsedAcc = (this.elapsedAcc || 0) + elapsed - this.elapsedPrev;
   
-        if(this.elapsedAcc >= (1000 / (this.config.frameRate || FRAME_RATE_DEFAULT))) {
+        if(this.elapsedAcc >= (1000 / (this.frameRate))) {
 
             if (this.#isPlaying) {
                 
