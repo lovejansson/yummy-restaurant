@@ -3,7 +3,7 @@ import { createGrid, drawGrid } from "./path.js";
 import Waiter from "./Waiter.js";
 import { BASE_URL } from "./config.js";
 import Table from "./Table.js";
-import Guest from "./Guest.js";
+import GuestGroup from "./GuestGroup.js";
 
 
 export default class Play extends Scene {
@@ -13,35 +13,18 @@ export default class Play extends Scene {
         this.orders = [];
         this.tables = [];
         this.idleSpots = [];
-        this.guestCompanies = [];
-        this.guestTablesRelation = [];
-        this.GUESTS_ARRIVAL_POS = { x: 0, y: 16 * 7 };
+        this.guestGroups = [];
     }
 
-    guestLeft(guestId) {
-        this.guests.splice(this.guests.findIndex(g => g.id === guestId), 1);
-        this.getTableFor(guestId).isAvailable = true;
-        this.#createArrivingGuests();
+    guestGroupLeft(guestGroup) {
+        guestGroup.table.isAvailable = true;
+        this.guestGroups.remove(guestGroup);
+        this.#createGuestGroup({name: "arrive"})
+
     }
 
-    pickTableForGuests(guests) {
-        const table = this.tables.filter(t => t.isAvailable).random();
-
-        for (const g of guests) {
-            this.guestTablesRelation.push({ guestId: g, tableId: table.id });
-        }
-        
-        table.isAvailable = false;
-
-        return table;
-    }
-
-    getTableFor(guestId) {
-        return this.tables.find(t => t.id === this.guestTablesRelation.find(r => r.guestId === guestId)?.tableId);
-    }
-
-    getGuestsAt(tableId) {
-        return this.guestTablesRelation.filter(r => r.tableId === tableId)?.map(r => r.guestId);
+    getGroupFor(guest) {
+        return this.guestGroups.find(gg => gg.guests.find(g => g === guest));
     }
 
     async init() {
@@ -61,7 +44,7 @@ export default class Play extends Scene {
 
         this.waiter = new Waiter(this, Symbol("waiter"),this.idleSpots.random(), 15, 32, "afro");
 
-        this.#createArrivingGuests(); 
+        this.#initGuests(); 
 
         this.isInitialized = true;
     }
@@ -82,7 +65,7 @@ export default class Play extends Scene {
 
         this.waiter.update();
         
-        for(const g of this.guests) {
+        for(const g of this.guestGroups) {
             g.update();
         }
     }
@@ -122,8 +105,8 @@ export default class Play extends Scene {
             
         }
 
-        for(const g of this.guests) {
-            g.draw(ctx);
+        for(const gg of this.guestGroups) {
+            gg.draw(ctx);
         }
 
         this.waiter.draw(ctx);
@@ -197,87 +180,18 @@ export default class Play extends Scene {
     }
 
     #initGuests() {
-        for(let i = 0; i < this.tables.length - 1; ++i) {
-            this.#createArrivingGuests();
-        }
-
-        this.#createOrderingGuests();
-        this.#createEatingAndDrinkingGuests();
-        this.#createEatingAndDrinkingGuests();
-        this.#createArrivingGuests(); 
+        this.#createGuestGroup( {name: "arrive"});
+        // this.#createGuestGroup( {name: "eat-drink", type: "food" });
+        // this.#createGuestGroup( {name: "eat-drink", type: "dessert" });
+        // this.#createGuestGroup( {name: "order", type: "food"});
+        // this.#createGuestGroup( {name: "order", type: "dessert"});
+        // this.#createGuestGroup( {name: "receive-order", type: "food"});
     }
 
-    #createOrderingGuests() {
-        const numOfGuests = Math.ceil(Math.random() * 4);
-        const table = this.tables.find(t => t.isAvailable);
-
-        if(numOfGuests === 2) {
-                const guest1 = new Guest(this, Symbol("guest"), table.seats.s, 15, 32, 0);
-                guest1.lifeCycleState = new Order("food");
-                this.guests.push(guest1);
-                const guest2 = new Guest(this, Symbol("guest"), table.seats.n, 15, 32, 2);
-                guest2.lifeCycleState = new Order("food");
-                this.guests.push(guest2);
-        } else {
-            const startIdx = Math.min(4 - numOfGuests, Math.floor(Math.random() * 4));
-            
-            for (let i = startIdx; i < startIdx + numOfGuests; ++i) {
-                    const guest = new Guest(this, Symbol("guest"), table.seats[["n", "e", "s", "w"][i]], 15, 32, i);
-                    guest.lifeCycleState = new Order("dessert");
-                    this.guests.push(guest);
-            }
-        }
-
-        this.art.services.events.add({name: "arrive", data: {guests: this.guests.map(g => g.id)}});
-    }
-
-     #createEatingAndDrinkingGuests() {
-        const numOfGuests = Math.ceil(Math.random() * 4);
-        const table = this.tables.find(t => t.isAvailable);
-
-        if(numOfGuests === 2) {
-                const guest1 = new Guest(this, Symbol("guest"), table.seats.s, 15, 32, 0);
-                guest1.lifeCycleState = new EatingAndDrinking("food");
-                this.guests.push(guest1);
-                const guest2 = new Guest(this, Symbol("guest"), table.seats.n, 15, 32, 2);
-                guest2.lifeCycleState = new EatingAndDrinking("food");
-                this.guests.push(guest2);
-        } else {
-            const startIdx = Math.min(4 - numOfGuests, Math.floor(Math.random() * 4));
-            
-            for (let i = startIdx; i < startIdx + numOfGuests; ++i) {
-                    const guest = new Guest(this, Symbol("guest"), table.seats[["n", "e", "s", "w"][i]], 15, 32, i);
-                    guest.lifeCycleState = new EatingAndDrinking("food");
-                    this.guests.push(guest);
-            }
-        }
-
-        this.art.services.events.add({name: "arrive", data: {guests: this.guests.map(g => g.id)}});
-    }
-
-
-    #createArrivingGuests() {
-        const numOfGuests = Math.ceil(Math.random() * 4);
-
-        if(numOfGuests === 2) {
-                const guest1 = new Guest(this, Symbol("guest"), { x: this.GUESTS_ARRIVAL_POS.x, y: this.GUESTS_ARRIVAL_POS.y + this.art.tileSize }, 15, 32, 0);
-                guest1.lifeCycleState = new Arriving();
-                this.guests.push(guest1);
-
-                const guest2 = new Guest(this, Symbol("guest"), { x: this.GUESTS_ARRIVAL_POS.x, y: this.GUESTS_ARRIVAL_POS.y + this.art.tileSize}, 15, 32, 2);
-                guest2.lifeCycleState = new Arriving();
-                this.guests.push(guest2);
-        } else {
-            const startIdx = Math.min(4 - numOfGuests, Math.floor(Math.random() * 4));
-
-            for (let i = startIdx; i < startIdx + numOfGuests; ++i) {
-                const guest = new Guest(this, Symbol("guest"), { x: this.GUESTS_ARRIVAL_POS.x, y: this.GUESTS_ARRIVAL_POS.y + this.art.tileSize * i }, 15, 32, i);
-                guest.lifeCycleState = new Arriving();
-                this.guests.push(guest);
-            }
-        }
-
-        this.art.services.events.add({name: "arrive", data: {guests: this.guests.map(g => g.id)}});
+    #createGuestGroup(initialState) {
+        const guestGroup = new GuestGroup(this, initialState);
+        guestGroup.init();
+        this.guestGroups.push(guestGroup);
     }
 
 }

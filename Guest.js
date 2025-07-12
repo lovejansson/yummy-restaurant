@@ -19,6 +19,11 @@ class ActionState {
 
 
 class LifeCycleState {
+
+    constructor() {
+        this.isDone = false;
+    }
+
     /**
      * @param {Guest} guest 
      */
@@ -39,9 +44,8 @@ class LifeCycleState {
  * The arriving state is when the guest is first spawned. At first they are waiting for a waiter at a specific spot. 
  * After the waiter has greeted them they will be escorted to a table. When they arrive at the table they 
  * are transitioning into the ordering state.
- * 
  */
-export class Arriving extends LifeCycleState {
+export class Arrive extends LifeCycleState {
 
     /**
      * @param {Guest} guest 
@@ -55,30 +59,29 @@ export class Arriving extends LifeCycleState {
      * @param {Guest} guest 
      */
     update(guest) { 
+
         if (guest.isIdleStanding()) {
-            
             const message = guest.scene.art.services.messages.receive(guest.id);
            
             // waiter signals to follow them to a table
             if (message !== undefined) { 
-                const table = guest.scene.getTableFor(guest.id);
-                guest.actionState = new Walking(table.corners[guest.tableSide]); 
+                guest.actionState = new Walking(message.content.table.corners[guest.tableSide]); 
             }   
 
         } else if (guest.isWalking()) {
             if (guest.actionState.path.hasReachedGoal) {
                 console.log(guest.pos);
                 console.log("Reached goal, sitting down");
+        
                 guest.actionState = new SittingDown();
+                this.isDone = true;
             }
-        } else if (guest.isIdleSitting()) {
-            guest.lifeCycleState = new Order("food");
-        }
+        } 
     }
 }
 
 
-class Eating extends LifeCycleState {
+class Eating extends ActionState {
 
     constructor() {
         super();
@@ -115,7 +118,7 @@ class Eating extends LifeCycleState {
 }
 
 
-class Drinking extends LifeCycleState {
+class Drinking extends ActionState {
    
     constructor() {
         super();
@@ -151,7 +154,7 @@ class Drinking extends LifeCycleState {
     }
 }
 
-export class EatingAndDrinking extends LifeCycleState {
+export class EatAndDrink extends LifeCycleState {
 
     /**
      * 
@@ -165,6 +168,7 @@ export class EatingAndDrinking extends LifeCycleState {
     }
 
     init(guest) {
+
         guest.actionState = new Eating(guest.direction);
 
         setTimeout(() => {
@@ -176,44 +180,38 @@ export class EatingAndDrinking extends LifeCycleState {
         setInterval(() => {
             this.switchAction = true;
         }, 1000 * 15); 
-       
-        // 15 sek 
-    }
 
+    }
+       
     /**
      * @param {Guest} guest 
      */
     update(guest) {
+
         console.log("GEST EATING AND DRINKING UPDATE", guest.id, this.isDone, this.switchAction);
 
-        if (!guest.messageBubble.isShowing()) {
-            if (this.isDone) {
-                if (this.type === "food") {
-                    guest.lifeCycleState = new Order("dessert")
-                } else {
-                    guest.lifeCycleState = new Order("bill");
-                }
+        if (!guest.messageBubble.isShowing() && !this.isDone && this.switchAction) {
 
-            } else if (this.switchAction) {
-                if (guest.isEating()) {
-                    guest.actionState = new Drinking();
-                } else {
-                    guest.actionState = new Eating();
-                }
-
-                this.switchAction = false;
+            if (guest.isEating()) {
+                guest.actionState = new Drinking();
+            } else {
+                guest.actionState = new Eating();
             }
+
+            this.switchAction = false;
         }
     }
 }
 
-class ReceivingOrder extends LifeCycleState {
+export class ReceiveOrder extends LifeCycleState {
     /**
-     * @param {"food" | "dessert" | "bill"} orderType 
+     * @param {"food" | "dessert" | "bill"} type 
+     * @param {boolean} shouldTakeBill
      */
-    constructor(orderType) {
+    constructor(type, shouldTakeBill) {
         super();
-        this.orderType = orderType;
+        this.type = type;
+        this.shouldTakeBill = shouldTakeBill
     }
 
     init(guest) {
@@ -225,29 +223,31 @@ class ReceivingOrder extends LifeCycleState {
      */
     update(guest) {
 
-        if (guest.messageBubble.isShowing()) {
+        if(this.type !== "bill" || this.shouldTakeBill) {
+            if (guest.messageBubble.isShowing()) {
 
-            if (guest.messageBubble.shouldHide()) {
-                guest.messageBubble.hideMessage();
+                        if (guest.messageBubble.shouldHide()) {
 
-                switch (this.orderType) {
-                    case "food":
-                    case "dessert":
-                        guest.lifeCycleState = new EatingAndDrinking(this.orderType);
-                        break;
-                    case "bill":
-                        guest.lifeCycleState = new Leaving();
-                        break;
-                }
-            }
+                            guest.messageBubble.hideMessage();
+
+                            this.isDone = true;
+                        }
+                    } else {
+                        // Waiter says something when guest is receiving the order
+                        const message = guest.scene.art.services.messages.receive(guest.id);
+                        if (message !== undefined) {
+                            guest.messageBubble.showMessage(phrases[`${this.type}Comments`].random());
+                            this.waiterId = message.from;
+                        }
+                    }
         } else {
-            // Waiter says something when guest is receiving the order
-            const message = guest.scene.art.services.messages.receive(guest.id);
-            if (message !== undefined) {
-                guest.messageBubble.showMessage(phrases[`${this.orderType}Comments`].random());
-                this.waiterId = message.from;
-            }
+            const group = guest.scene.getGroupFor(guest);
+
+            this.isDone = group.guests.find(g => g.lifeCycleState.shouldTakeBill)?.lifeCycleState.isDone;
+
         }
+
+
     }
 }
 
@@ -255,20 +255,20 @@ class ReceivingOrder extends LifeCycleState {
  * When the guest wants to order something they first sit and wait for the waiter to arrive and 
  * then the ordering conversation begins. 
  */
-class Order extends LifeCycleState {
+export class Order extends LifeCycleState {
 
     /**
-     * @param {"food" | "dessert" | "bill"} orderType 
+     * @param {"food" | "dessert" | "bill"} type 
      */
-    constructor(orderType) {
+    constructor(type, shouldTakeBill) {
         super();
-        this.orderType = orderType;
+        this.type = type;
         this.hasOrdered = false;
         this.waiterId = null;
+        this.shouldTakeBill = shouldTakeBill;
     }
 
     init(guest) {
-        guest.scene.art.services.events.add({name: `order-${this.orderType}`, data: {tableId:  guest.scene.getTableFor(guest.id).id}});
     }
 
     /**
@@ -276,36 +276,43 @@ class Order extends LifeCycleState {
      */
     update(guest) {
 
-        // Guest is telling waiter the order
-        if (guest.messageBubble.isShowing()) {
+        if(this.type !== "bill" || this.shouldTakeBill) {
+            // Guest is telling waiter the order
+                if (guest.messageBubble.isShowing()) {
 
-            // Send message to waiter when bubble is done and transition into receiving the order.
+                    // Send message to waiter when bubble is done and transition into receiving the order.
 
-            if (guest.messageBubble.shouldHide()) {
+                    if (guest.messageBubble.shouldHide()) {
+                        console.log("SENDING ORDER TOWAITER", this.items, guest.id, this.waiterId)
+                        guest.scene.art.services.messages.send({items: this.items}, guest.id, this.waiterId);
+                        guest.messageBubble.hideMessage();
+                        this.isDone = true;
+                    }
 
-                guest.scene.art.services.messages.send({items: this.items}, guest.id, this.waiterId);
-                guest.messageBubble.hideMessage();
-                guest.lifeCycleState = new ReceivingOrder(this.orderType);
-            }
+                } else {
+                    // Guest is waiting for waiter to be ready to take their order
+                    const message = guest.scene.art.services.messages.receive(guest.id);
 
-        } else {
-            // Guest is waiting for waiter to be ready to take their order
-            const message = guest.scene.art.services.messages.receive(guest.id);
+                    if (message !== undefined) {
 
-            if (message !== undefined) {
-         
-
-                if(this.orderType === "bill") {
-                    this.items = [{name: "bill", price: 0}];
-                     guest.messageBubble.showMessage(phrases.askingForBill());
-                }  else {
-            
-                    this.items = [menu["drink"].random(), menu[this.orderType].random()];
-                    guest.messageBubble.showMessage(phrases.order(this.items[0]) + " and " + phrases.order(this.items[1]));
+                        if(this.type === "bill") {
+                            this.isDone = true;
+                            console.log("ASKING FOR BILL")
+                            guest.messageBubble.showMessage(phrases.askingForBill());
+                        }  else {
+                            this.items = [menu["drink"].random(), menu[this.type].random()];
+                            guest.messageBubble.showMessage(phrases.order(this.items[0]) + " and " + phrases.order(this.items[1]));
+                        }
+                    
+                        this.waiterId = message.from;
+                    }
                 }
-              
-                this.waiterId = message.from;
-            }
+        } else {
+
+            const group = guest.scene.getGroupFor(guest);
+
+            this.isDone = group.guests.find(g => g.lifeCycleState.shouldTakeBill)?.lifeCycleState.isDone;
+
         }
     }
 }
@@ -313,12 +320,11 @@ class Order extends LifeCycleState {
 /**
  * The leaving state is when the guest is done and walks out of the restaurant. 
  */
-class Leaving extends LifeCycleState {
+export class Leave extends LifeCycleState {
     /**
      * @param {Guest} guest 
      */
     init(guest) {
-
         console.log("Guest is done, leaving");
         guest.actionState = new StandingUp(guest.direction);
     }
@@ -331,7 +337,12 @@ class Leaving extends LifeCycleState {
         if(guest.isIdleStanding()) {
             guest.actionState = new Walking({ x: 0, y: guest.scene.art.tileSize * 7 }); 
         } else if (guest.isWalking() && guest.actionState.path.hasReachedGoal) {
-            guest.scene.guestLeft(guest.id);
+            // Keep walking out, guest group will take this guest away
+            guest.pos.x -= 1;
+            guest.direction = "w";
+
+        } else if (guest.pos.x < -guest.scene.art.tileSize) {
+            this.isDone = true;
         }
     }
 }
@@ -436,6 +447,7 @@ class SittingDown extends ActionState {
         super();
         this.initialized = false;
     }
+
     /**
      * @param {Guest} guest 
      */
@@ -453,8 +465,7 @@ class SittingDown extends ActionState {
         if (!guest.animations.isPlaying(`sit-down-${guest.direction}`)) {
             console.log("HAS SAT DOWN", guest.direction)
             guest.actionState = new IdleSitting(guest.direction);
-            const table = guest.scene.getTableFor(guest.id)
-            console.log(table.seats[guest.direction]);
+            const table = guest.scene.getGroupFor(guest).table;
             guest.pos = table.seats[guest.direction];
         }
     }
@@ -534,6 +545,10 @@ export default class Guest extends Sprite {
         this.animations.create("stand-up-w", {type: "spritesheet", frames: "granny-walk", frameRate: 250, numberOfFrames: 1, startIdx: 24});
     }
 
+    get lifeCycleState() {
+        return this.#lifeCycleState;
+    }
+
     /**
      * @param {LifeCycleState} state
      */
@@ -555,7 +570,7 @@ export default class Guest extends Sprite {
     }
 
     isArriving() {
-        return this.#lifeCycleState instanceof Arriving;
+        return this.#lifeCycleState instanceof Arrive;
     }
 
     isEating() {
@@ -567,11 +582,11 @@ export default class Guest extends Sprite {
     }
 
     isEatingAndDrinking() {
-        return this.#lifeCycleState instanceof EatingAndDrinking;
+        return this.#lifeCycleState instanceof EatAndDrink;
     }
 
     isReceivingOrder() {
-        return this.#lifeCycleState instanceof ReceivingOrder;
+        return this.#lifeCycleState instanceof ReceiveOrder;
     }
 
     isOrdering() {
@@ -579,7 +594,7 @@ export default class Guest extends Sprite {
     }
 
     isLeaving() {
-        return this.#lifeCycleState instanceof Leaving;
+        return this.#lifeCycleState instanceof Leave;
     }
 
     getGridPos() {
@@ -590,7 +605,8 @@ export default class Guest extends Sprite {
     }
 
     update() {
-        this.lifeCycleState.update(this);
+
+        this.#lifeCycleState.update(this);
         this.actionState.update(this);
     }
 }

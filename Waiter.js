@@ -1,6 +1,8 @@
+import GuestGroup from "./GuestGroup.js";
 import  { phrases } from "./message.js";
 import { MessageBubble } from "./message.js";
 import { Sprite } from "./pim-art/index.js";
+import Table from "./Table.js";
 import { WalkPath } from "./WalkPath.js";
 
 
@@ -53,22 +55,27 @@ class Waiting extends LifeCycleState {
 
             switch (event.name) {
                 case "order-food":
-                    waiter.lifeCycleState = new TakingOrder("food", event.data.tableId);
+                    waiter.lifeCycleState = new TakingOrder("food", event.data.guestGroup);
                     break;
                 case "order-dessert":
-                    waiter.lifeCycleState = new TakingOrder("dessert",  event.data.tableId);
+                    waiter.lifeCycleState = new TakingOrder("dessert", event.data.guestGroup);
                     break;
                 case "order-bill":
-                    waiter.lifeCycleState = new TakingOrder("bill",  event.data.tableId);
+                    waiter.lifeCycleState = new TakingOrder("bill", event.data.guestGroup);
                     break;
                 case "arrive":
-                    waiter.lifeCycleState = new Welcoming(event.data.guests, {x: waiter.scene.GUESTS_ARRIVAL_POS.x + 16, y: waiter.scene.GUESTS_ARRIVAL_POS.y + 16 * event.data.guests.length / 2}); 
+                    console.log(event.data.guestGroup.guests[0].pos)
+                    waiter.lifeCycleState = new Welcoming(event.data.guestGroup, 
+                        {
+                            x: event.data.guestGroup.guests[0].pos.x + waiter.scene.art.tileSize, 
+                            y: event.data.guestGroup.guests[Math.floor(event.data.guestGroup.guests.length / 2)].pos.y
+                        }); 
                     break;
                 case "order-ready":
-                    const order = waiter.scene.orders.find(o => o.id === event.data.orderId);
+                    const order = waiter.scene.orders.find(o => o === event.data.order);
 
                     if(order === undefined) {
-                        console.error("Order for event order-ready with id " + event.data.orderId + " not found :|||");
+                        console.error("Order for event order-ready with id " + event.data.order.id.toString() + " not found :|||");
                         break;
                     }
 
@@ -85,13 +92,11 @@ class Waiting extends LifeCycleState {
 class Welcoming extends LifeCycleState {
 
     /**
-     * @param {Symbol[]} guests
-     * @param {{x: number, y: number}} pos
+     * @param {GuestGroup} guestGroup
      */
-    constructor(guests, pos) {
+    constructor(guestGroup) {
         super();
-        this.guests = guests;
-        this.pos = pos;
+        this.guestGroup = guestGroup;
         this.currGoal = "guest";
         this.lastGuestNotifiedIdx = 0;
     }
@@ -101,7 +106,7 @@ class Welcoming extends LifeCycleState {
      */
     init(waiter) {
         console.log("Welcoming guests");
-        waiter.actionState = new Walking(this.pos);
+        waiter.actionState = new Walking(this.guestGroup.guests[0].pos);
     }
 
    /**
@@ -115,11 +120,14 @@ class Welcoming extends LifeCycleState {
        
                     if(waiter.actionState.path.hasReachedGoal) {
                         waiter.actionState = new Idle();
-                        waiter.messageBubble.showMessage(phrases.welcomeGuest(this.guests.length));
+                        waiter.messageBubble.showMessage(phrases.welcomeGuest(this.guestGroup.guests.length));
                     }
 
                 } else if (waiter.messageBubble.shouldHide()) {
-                    const table = waiter.scene.pickTableForGuests(this.guests);
+
+                    const table = waiter.scene.tables.filter(t => t.isAvailable).random();
+                    table.isAvailable = false;
+                    this.guestGroup.table = table;
                     waiter.messageBubble.hideMessage();
                     waiter.actionState = new Walking(table.corners[1]);
                     this.currGoal = "table";
@@ -129,21 +137,10 @@ class Welcoming extends LifeCycleState {
             case "table":
                  if(waiter.isWalking()) {
 
-                    /**
-                     * 
-                     * Waitor börjar gå och man kan hålla koll på pathen hela tiden när den har nått ett snäpp,
-                     * sen skickar waiter meddelande tll gästen att den ska börja gå
-                     * 
-                     * TODO: fixa med waiterns placering så att den ställer sig i ett hörn
-                     * TODO: fixca med gästens placeringar enligt bordets palcering. 
-                     * 
-                     */
-          
-                    // Notify the guests to follow the waiter towards the same table
-                    if(this.lastGuestNotifiedIdx < this.guests.length && 
+                    if(this.lastGuestNotifiedIdx < this.guestGroup.guests.length && 
                         waiter.actionState.path.getCellCount() !== this.lastGuestNotifiedIdx) {
                  
-                        waiter.scene.art.services.messages.send({data: null}, waiter.id, this.guests[this.lastGuestNotifiedIdx]);
+                        waiter.scene.art.services.messages.send({table: this.guestGroup.table}, waiter.id, this.guestGroup.guests[this.lastGuestNotifiedIdx].id);
                         this.lastGuestNotifiedIdx = waiter.actionState.path.getCellCount();
                        
                     }
@@ -154,9 +151,7 @@ class Welcoming extends LifeCycleState {
 
                 } else if (waiter.isIdle()) {
 
-                    const allGuestsAreSeated = this.guests.every(gId => waiter.scene.guests.find(g => g.id === gId).isIdleSitting());
-
-                    if(allGuestsAreSeated) {
+                    if(this.guestGroup.guests.every(g => g.isIdleSitting())) {
                         waiter.messageBubble.showMessage(phrases.menuComment());
                         waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random());
                         this.currGoal = "idle-spot";
@@ -174,16 +169,17 @@ class Welcoming extends LifeCycleState {
 }
 
 
-class TakingOrder extends LifeCycleState{
+class TakingOrder extends LifeCycleState {
      /**
      * @param {"food" | "dessert" | "bill"} type
-     * @param {Symbol} tableId
+     * @param {GuestGroup} guestGroup
      */
-    constructor(type, tableId) {
+    constructor(type, guestGroup) {
         super();
         this.type = type;
+        this.guestGroup = guestGroup;
         this.hasTakenOrder = false;
-        this.order = {id: Symbol("order"), tableId, orders: []};
+        this.order = {id: Symbol("order"), guestGroup, orders: []};
         this.orderCount = 0;
     }
 
@@ -192,7 +188,7 @@ class TakingOrder extends LifeCycleState{
      */
     init(waiter) {
         console.log("TAKING AN ORDER", this.type);
-        waiter.actionState = new Walking(waiter.scene.tables.find(t => t.id === this.order.tableId).corners[0]);
+        waiter.actionState = new Walking(this.guestGroup.table.corners[0]);
     }
 
    /**
@@ -214,17 +210,24 @@ class TakingOrder extends LifeCycleState{
                 }
                 
             } else if (waiter.messageBubble.shouldHide()) {
+
                 waiter.messageBubble.hideMessage();
-                waiter.scene.art.services.messages.send(phrases.takingOrder(this.type), waiter.id, waiter.scene.getGuestsAt(this.order.tableId)[this.orderCount]);
+
+                if(this.type === "bill") {
+                    waiter.scene.art.services.messages.send(phrases.takingOrder(this.type), waiter.id, this.guestGroup.guests.find(g => g.lifeCycleState.shouldTakeBill)?.id);
+                } else {
+                    waiter.scene.art.services.messages.send(phrases.takingOrder(this.type), waiter.id, this.guestGroup.guests[this.orderCount].id);
+                }
+        
             } else  {
 
                 const message =  waiter.scene.art.services.messages.receive(waiter.id);
 
                 if(message !== undefined) {
+
                     this.order.orders.push({guestId: message.from, items: message.content.items});
 
-
-                    if(this.type === "bill" || this.order.orders.length === waiter.scene.getGuestsAt(this.order.tableId).length) {
+                    if(this.type === "bill" || this.order.orders.length === this.guestGroup.guests.length) {
 
                         this.hasTakenOrder = true;
 
@@ -232,7 +235,7 @@ class TakingOrder extends LifeCycleState{
    
                         // After 5 min the order is ready to pick up 
                         setTimeout(() => {
-                            waiter.scene.art.services.events.add({name: "order-ready", data: {orderId: this.order.id}});
+                            waiter.scene.art.services.events.add({name: "order-ready", data: {order: this.order}});
                         }, 1000 * 5);
 
                         waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random());
@@ -251,8 +254,8 @@ class TakingOrder extends LifeCycleState{
 /**
  * @typedef TableOrder
  * @property {"food" | "dessert" | "bill"} type
- * @property {Symbol} orderId
- * @property {Symbol} tableId
+ * @property {Symbol} id
+ * @property {GuestGroup} guestGroup
  * @property {Order[]} orders
  */
 
@@ -263,7 +266,6 @@ class TakingOrder extends LifeCycleState{
  */
 
 class Serving {
-
     /**
      * @param {TableOrder} order
      */
@@ -276,8 +278,8 @@ class Serving {
      * @param {Waiter} waiter 
      */
     init(waiter) {
-        console.log("Serving")
-        waiter.actionState = new Walking(waiter.scene.tables.find(t => t.id === this.order.tableId).corners[0]);
+        console.log("Serving");
+        waiter.actionState = new Walking(this.order.guestGroup.table.corners[0]);
     }
 
    /**
@@ -288,6 +290,7 @@ class Serving {
             if(waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
                 waiter.lifeCycleState = new Waiting();
             }
+
         } else {
             if(waiter.isWalking()) {
                 if(waiter.actionState.path.hasReachedGoal) {
@@ -298,9 +301,10 @@ class Serving {
 
                 waiter.messageBubble.hideMessage();
 
+
                 // Tell all guests that their order is ready 
                 for(const o of this.order.orders) {
-      
+                    console.log(o)
                     waiter.scene.art.services.messages.send({items: o.items}, waiter.id, o.guestId); 
                 }
           
@@ -457,7 +461,7 @@ export default class Waiter extends Sprite {
     }
 
    update() {
-        this.lifeCycleState.update(this);
+        this.#lifeCycleState.update(this);
         this.actionState.update(this);
     }
 }
