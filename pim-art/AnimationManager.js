@@ -66,7 +66,6 @@ export default class AnimationManager {
      */
     play(key) {
 
-
         const animation = this.animations.get(key);
 
         if (!animation) throw new AnimationNotAddedError(key);

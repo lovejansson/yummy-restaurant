@@ -24,12 +24,7 @@ export class WalkPath {
 
     constructor(sprite, goalPos) {
         this.sprite = sprite;
-
         this.#path = createPathAStar(sprite.getGridPos(), {row: Math.floor(goalPos.y / 16), col: Math.floor(goalPos.x / 16)}, sprite.scene.grid);
-
-        for(const cell of this.#path) {
-            this.sprite.scene.grid[cell.row][cell.col] = 4; // Tiles in path is occupied by this sprite walkpath right now
-        }
 
         this.#currPos = this.sprite.pos;
         this.#currPixelDiff = 0;
@@ -63,9 +58,6 @@ export class WalkPath {
         this.#currCellIdx++;
         if(this.#currCellIdx === this.#path.length - 1) {
             this.hasReachedGoal = true;
-            for(const cell of this.#path) {
-                this.sprite.scene.grid[cell.row][cell.col] = 0; // Tile not occupied for sprite anymore
-            }
             
         } else {
             const diff = this.#calculateXYUpdateDiff();
@@ -75,7 +67,7 @@ export class WalkPath {
 
     #calculateXYUpdateDiff() {
         const currCell = this.#path[this.#currCellIdx];
-
+    
         if (this.#currCellIdx === this.#path.length - 1) {
             const prev = this.#path[this.#currCellIdx - 1];
             return { y: currCell.row - prev.row, x: currCell.col - prev.col};

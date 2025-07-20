@@ -1,22 +1,15 @@
+Next 
 
-- Rita 1 typ av gäst och en typ av waiter
-    - Gäst som sitter på stol i 4 riktningar
-    - Gäst som går i 8 riktningar
-    - Waiter som går i 8 riktningar 
-    
--> Programmera hela flödet med 1 typ av waiter och en typ av gäst fast duplicerade för att få till typ av animeringar etc. 
+Fixa alla bubblor så de visar rätt content
 
--> Gäst som sätter sig ned i 4 riktningar.
+TODO 
 
--> Gäst som reser sig upp i 4 riktningar. 
+Äta- och dricka animeringar 
+Sätta sig och ställa sig upp animeringar 
 
--> Gäst som äter 
+Waiter bära bricka animeringar
 
--> Gäst som dricker
+Lägg till flera stycken varianter av guests 
+Lägg till flera stycken varianter av waiters
 
--> Waiter som går med mat / dryck
-
-Arrive event när ett sällskap kommer görs i Play scenen 
-
-Order event borde också ske för sällskapet i sig inte för en enskild gäst 
-så när gästerna äter måste de synka state för om de ska ske en order eller om de ska gå etc. 
+Placera ut justin och hans band på scenen 

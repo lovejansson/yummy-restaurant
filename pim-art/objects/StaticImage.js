@@ -24,6 +24,7 @@ export default class StaticImage extends ArtObject {
      * @param {CanvasRenderingContext2D} ctx 
      */
     draw(ctx) {
+
         ctx.drawImage(this.scene.art.images.get(this.image), this.pos.x, this.pos.y);
     }
 }

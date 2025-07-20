@@ -104,11 +104,11 @@ function createPathBFS(start, end, grid) {
  * @returns {Cell[]} path, array of grid cells 
  */
 function createPathAStar(start, end, grid) {
-    //  console.log("Creating path from " + JSON.stringify(start) + " to " + JSON.stringify(end));
-    // console.log(grid[start.row][start.col], grid[end.row][end.col]);
+     console.log("Creating path from " + JSON.stringify(start) + " to " + JSON.stringify(end));
+    console.log(grid[start.row][start.col], grid[end.row][end.col]);
     
     // if(grid[start.row][start.col] === 1 ) throw new Error("Start cell is a non walkable cell.");
-    // if(grid[end.row][end.col] === 1) throw new Error("End cell is a non walkable cell.");
+    if(grid[end.row][end.col] === 1) throw new Error("End cell is a non walkable cell.");
 
     const rows = grid.length;
     const cols = grid[0].length;

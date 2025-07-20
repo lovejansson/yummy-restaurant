@@ -36,6 +36,7 @@ export default class Sprite extends ArtObject {
 
         // Draw static image for sprite
         if(this.image) {
+            // console.log("DRAWING IMAGE OF ", this.image, this.scene.art.images.get(this.image))
             ctx.drawImage(this.scene.art.images.get(this.image), this.pos.x, this.pos.y);
         } else {
             // Draw animation for sprite

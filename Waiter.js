@@ -1,8 +1,6 @@
 import GuestGroup from "./GuestGroup.js";
-import  { phrases } from "./message.js";
 import { MessageBubble } from "./message.js";
 import { Sprite } from "./pim-art/index.js";
-import Table from "./Table.js";
 import { WalkPath } from "./WalkPath.js";
 
 
@@ -15,7 +13,13 @@ class ActionState {
     }
 }
 
-
+/**
+ * Waiter's life cycle states are:
+ * Waiting
+ * Welcoming
+ * TakingOrder
+ * ServingOrder
+ */
 class LifeCycleState {
     /**
      * @param {Waiter} waiter 
@@ -33,11 +37,12 @@ class LifeCycleState {
 }
 
 
-class Waiting extends LifeCycleState {
+class Wait extends LifeCycleState {
     /**
      * @param {Waiter} waiter 
      */
     init(waiter) {
+
         waiter.direction = "s";
         waiter.actionState = new Idle();
     }
@@ -55,21 +60,16 @@ class Waiting extends LifeCycleState {
 
             switch (event.name) {
                 case "order-food":
-                    waiter.lifeCycleState = new TakingOrder("food", event.data.guestGroup);
+                    waiter.lifeCycleState = new TakeOrder("food", event.data.guestGroup);
                     break;
                 case "order-dessert":
-                    waiter.lifeCycleState = new TakingOrder("dessert", event.data.guestGroup);
+                    waiter.lifeCycleState = new TakeOrder("dessert", event.data.guestGroup);
                     break;
                 case "order-bill":
-                    waiter.lifeCycleState = new TakingOrder("bill", event.data.guestGroup);
+                    waiter.lifeCycleState = new TakeOrder("bill", event.data.guestGroup);
                     break;
                 case "arrive":
-                    console.log(event.data.guestGroup.guests[0].pos)
-                    waiter.lifeCycleState = new Welcoming(event.data.guestGroup, 
-                        {
-                            x: event.data.guestGroup.guests[0].pos.x + waiter.scene.art.tileSize, 
-                            y: event.data.guestGroup.guests[Math.floor(event.data.guestGroup.guests.length / 2)].pos.y
-                        }); 
+                    waiter.lifeCycleState = new Welcome(event.data.guestGroup); 
                     break;
                 case "order-ready":
                     const order = waiter.scene.orders.find(o => o === event.data.order);
@@ -79,7 +79,7 @@ class Waiting extends LifeCycleState {
                         break;
                     }
 
-                    waiter.lifeCycleState = new Serving(order);
+                    waiter.lifeCycleState = new ServeOrder(order);
                     break;
             }
         }
@@ -89,7 +89,7 @@ class Waiting extends LifeCycleState {
 /**
  * The waiter will walk to the guest, say welcome and then escort them to a table. 
  */
-class Welcoming extends LifeCycleState {
+class Welcome extends LifeCycleState {
 
     /**
      * @param {GuestGroup} guestGroup
@@ -106,7 +106,11 @@ class Welcoming extends LifeCycleState {
      */
     init(waiter) {
         console.log("Welcoming guests");
-        waiter.actionState = new Walking(this.guestGroup.guests[0].pos);
+   
+        const pos = this.guestGroup.guests.length > 2 ? 
+        {x: waiter.scene.art.tileSize * 2, y: this.guestGroup.guests[0].pos.y} : 
+        {x: waiter.scene.art.tileSize, y: this.guestGroup.guests[0].pos.y + waiter.scene.art.tileSize} 
+        waiter.actionState = new Walking(pos);
     }
 
    /**
@@ -119,17 +123,16 @@ class Welcoming extends LifeCycleState {
                 if(waiter.isWalking()) {
        
                     if(waiter.actionState.path.hasReachedGoal) {
+                        this.guestGroup.waiterIsHere();
                         waiter.actionState = new Idle();
-                        waiter.messageBubble.showMessage(phrases.welcomeGuest(this.guestGroup.guests.length));
+                        waiter.messageBubble.showMessage(waiter.scene.symbols.smiley, {x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height});
                     }
 
-                } else if (waiter.messageBubble.shouldHide()) {
+                } else if (!waiter.messageBubble.isShowing) {
 
-                    const table = waiter.scene.tables.filter(t => t.isAvailable).random();
-                    table.isAvailable = false;
-                    this.guestGroup.table = table;
-                    waiter.messageBubble.hideMessage();
-                    waiter.actionState = new Walking(table.corners[1]);
+                    waiter.scene.pickTableForGuests(this.guestGroup);
+                    console.log("2");
+                    waiter.actionState = new Walking(this.guestGroup.table.corners[1]);
                     this.currGoal = "table";
                 }
 
@@ -137,12 +140,11 @@ class Welcoming extends LifeCycleState {
             case "table":
                  if(waiter.isWalking()) {
 
+                    // The waiter will notify the guests one by one to follow them for each tile they pass
                     if(this.lastGuestNotifiedIdx < this.guestGroup.guests.length && 
                         waiter.actionState.path.getCellCount() !== this.lastGuestNotifiedIdx) {
-                 
                         waiter.scene.art.services.messages.send({table: this.guestGroup.table}, waiter.id, this.guestGroup.guests[this.lastGuestNotifiedIdx].id);
                         this.lastGuestNotifiedIdx = waiter.actionState.path.getCellCount();
-                       
                     }
 
                     if(waiter.actionState.path.hasReachedGoal) {
@@ -152,26 +154,32 @@ class Welcoming extends LifeCycleState {
                 } else if (waiter.isIdle()) {
 
                     if(this.guestGroup.guests.every(g => g.isIdleSitting())) {
-                        waiter.messageBubble.showMessage(phrases.menuComment());
-                        waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random());
+                        waiter.messageBubble.showMessage(waiter.scene.symbols.smiley, {x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height});
                         this.currGoal = "idle-spot";
                     }
                 }
 
                 break;
             case "idle-spot":
-                if(waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                    waiter.lifeCycleState = new Waiting();
-                } 
+                if(waiter.isWalking()) {
+                    if(waiter.actionState.path.hasReachedGoal) {
+                        waiter.lifeCycleState = new Wait();
+                    }
+
+                } else if(!waiter.messageBubble.isShowing) {
+                    console.log("IDLE SPOT START WALKING BACK")
+                    waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random().pos);
+                }
+     
                 break;
         }
     }
 }
 
 
-class TakingOrder extends LifeCycleState {
+class TakeOrder extends LifeCycleState {
      /**
-     * @param {"food" | "dessert" | "bill"} type
+     * @param {"food" | "dessert" | "drink" | "bill"} type
      * @param {GuestGroup} guestGroup
      */
     constructor(type, guestGroup) {
@@ -198,7 +206,7 @@ class TakingOrder extends LifeCycleState {
 
         if(this.hasTakenOrder) {
             if(waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                  waiter.lifeCycleState = new Waiting();
+                  waiter.lifeCycleState = new Wait();
             }
 
         } else {
@@ -206,25 +214,28 @@ class TakingOrder extends LifeCycleState {
             if(waiter.isWalking()) {
                 if(waiter.actionState.path.hasReachedGoal) {
                     waiter.actionState = new Idle();
-                    waiter.messageBubble.showMessage(phrases.takingOrder(this.type));
-                }
-                
-            } else if (waiter.messageBubble.shouldHide()) {
+                    waiter.messageBubble.showMessage(waiter.scene.symbols.question, {x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height}, 10000);
+                    this.guestGroup.waiterIsHere();
 
-                waiter.messageBubble.hideMessage();
+                    // Send first ask to guest 
 
-                if(this.type === "bill") {
-                    waiter.scene.art.services.messages.send(phrases.takingOrder(this.type), waiter.id, this.guestGroup.guests.find(g => g.lifeCycleState.shouldTakeBill)?.id);
-                } else {
-                    waiter.scene.art.services.messages.send(phrases.takingOrder(this.type), waiter.id, this.guestGroup.guests[this.orderCount].id);
-                }
+                    if(this.type === "bill") {
+                        console.dir(this.guestGroup.guests)
+                        console.log("BILL TO", this.guestGroup.guests.find(g => g.lifeCycleState.shouldTakeBill)?.id)
+                        waiter.scene.art.services.messages.send("order plz", waiter.id, this.guestGroup.guests.find(g => g.lifeCycleState.shouldTakeBill)?.id);
+                    } else {
+                        waiter.scene.art.services.messages.send("order plz", waiter.id, this.guestGroup.guests[this.orderCount].id);
+                    }
         
-            } else  {
+                }
 
+            }
+             else  {
+                console.log("WAITER CHECKING FOR MESSAGES")
                 const message =  waiter.scene.art.services.messages.receive(waiter.id);
 
                 if(message !== undefined) {
-
+                    console.log("WAITER GOT ORDER FROM GUEST")
                     this.order.orders.push({guestId: message.from, items: message.content.items});
 
                     if(this.type === "bill" || this.order.orders.length === this.guestGroup.guests.length) {
@@ -237,12 +248,14 @@ class TakingOrder extends LifeCycleState {
                         setTimeout(() => {
                             waiter.scene.art.services.events.add({name: "order-ready", data: {order: this.order}});
                         }, 1000 * 5);
-
-                        waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random());
+    console.log("4");
+                        waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random().pos);
 
                     } else {
-                        waiter.messageBubble.showMessage(phrases.takingOrder(this.type));
                         this.orderCount++;
+                        // Send ask to next guest
+                        waiter.scene.art.services.messages.send("order plz", waiter.id, this.guestGroup.guests[this.orderCount].id);
+                       
                     }
                 }   
             }
@@ -265,7 +278,7 @@ class TakingOrder extends LifeCycleState {
  * @property {import("./menu.js").MenuItem[]} items
  */
 
-class Serving {
+class ServeOrder {
     /**
      * @param {TableOrder} order
      */
@@ -288,19 +301,16 @@ class Serving {
     update(waiter) {
         if(this.hasServed) {
             if(waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                waiter.lifeCycleState = new Waiting();
+                waiter.lifeCycleState = new Wait();
             }
 
         } else {
             if(waiter.isWalking()) {
                 if(waiter.actionState.path.hasReachedGoal) {
                     waiter.actionState = new Idle();
-                    waiter.messageBubble.showMessage(phrases.givingOrder(this.order.type));
+                    waiter.messageBubble.showMessage(waiter.scene.symbols.smiley ,{x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height});
                 }
-            } else if (waiter.messageBubble.shouldHide()) {
-
-                waiter.messageBubble.hideMessage();
-
+            } else if (!waiter.messageBubble.isShowing) {
 
                 // Tell all guests that their order is ready 
                 for(const o of this.order.orders) {
@@ -309,7 +319,8 @@ class Serving {
                 }
           
                 this.hasServed = true;
-                waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random());
+                    console.log("W5");
+                waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random().pos);
             }
         }
     }
@@ -330,6 +341,7 @@ class Walking extends ActionState {
 
     constructor(goal) {
         super();
+        console.log("NEW WALKING", goal)
         this.goal = goal;
         this.path = null;
     }
@@ -338,13 +350,13 @@ class Walking extends ActionState {
      * @param {Waiter} waiter 
      */
     update(waiter) {
+        // console.log(this.path)
 
         if(!waiter.animations.isPlaying(`walk-${waiter.direction}`)) {
             waiter.animations.play(`walk-${waiter.direction}`);
         }
         
         if (this.path === null) {
-
             this.path = new WalkPath(waiter, this.goal);
         }
         
@@ -395,11 +407,9 @@ export default class Waiter extends Sprite {
      * @param {string} who
      */
     constructor(scene, id, pos, width, height, who) {
-
         super(scene, id, pos, width, height);
-
-        this.messageBubble = new MessageBubble();
-        this.#lifeCycleState = new Waiting();
+        this.messageBubble = new MessageBubble(scene);
+        this.#lifeCycleState = new Wait();
         this.#lifeCycleState.init(this);
 
         this.animations.create("walk-s", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 0, loop: true });
