@@ -22,13 +22,14 @@ export class WalkPath {
     #path;
     #currCellIdx;
 
-    constructor(sprite, goalPos) {
+    constructor(sprite, goalPos, walkableTileValues = [0]) {
         this.sprite = sprite;
-        this.#path = createPathAStar(sprite.getGridPos(), {row: Math.floor(goalPos.y / 16), col: Math.floor(goalPos.x / 16)}, sprite.scene.grid);
+        this.#path = createPathAStar(sprite.getGridPos(), {row: Math.floor(goalPos.y / 16), col: Math.floor(goalPos.x / 16)}, sprite.scene.grid, walkableTileValues);
 
         this.#currPos = this.sprite.pos;
         this.#currPixelDiff = 0;
         this.#currCellIdx = 0;
+        
         const diff = this.#calculateXYUpdateDiff();
         this.sprite.direction = directionLables[diff.y + 1][diff.x + 1];
     

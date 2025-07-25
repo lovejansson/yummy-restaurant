@@ -108,7 +108,7 @@ class Welcome extends LifeCycleState {
         console.log("Welcoming guests");
    
         const pos = this.guestGroup.guests.length > 2 ? 
-        {x: waiter.scene.art.tileSize * 2, y: this.guestGroup.guests[0].pos.y} : 
+        {x: waiter.scene.art.tileSize * 2, y: this.guestGroup.guests[0].pos.y + waiter.scene.art.tileSize} : 
         {x: waiter.scene.art.tileSize, y: this.guestGroup.guests[0].pos.y + waiter.scene.art.tileSize} 
         waiter.actionState = new Walking(pos);
     }
@@ -125,14 +125,17 @@ class Welcome extends LifeCycleState {
                     if(waiter.actionState.path.hasReachedGoal) {
                         this.guestGroup.waiterIsHere();
                         waiter.actionState = new Idle();
-                        waiter.messageBubble.showMessage(waiter.scene.symbols.smiley, {x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height});
+                        waiter.messageBubble.showMessage(waiter.scene.createSymbol("smiley"), {x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height});
                     }
 
                 } else if (!waiter.messageBubble.isShowing) {
 
                     waiter.scene.pickTableForGuests(this.guestGroup);
                     console.log("2");
-                    waiter.actionState = new Walking(this.guestGroup.table.corners[1]);
+                    
+                    this.cornerIdx = Math.floor(Math.random() * this.guestGroup.table.corners.length);
+                
+                    waiter.actionState = new Walking(this.guestGroup.table.corners[this.cornerIdx]);
                     this.currGoal = "table";
                 }
 
@@ -149,12 +152,14 @@ class Welcome extends LifeCycleState {
 
                     if(waiter.actionState.path.hasReachedGoal) {
                         waiter.actionState = new Idle();
+                        waiter.direction = this.guestGroup.table.cornerDirections[this.cornerIdx];
+
                     }
 
                 } else if (waiter.isIdle()) {
 
                     if(this.guestGroup.guests.every(g => g.isIdleSitting())) {
-                        waiter.messageBubble.showMessage(waiter.scene.symbols.smiley, {x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height});
+                        waiter.messageBubble.showMessage(waiter.scene.createSymbol("smiley"), {x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height});
                         this.currGoal = "idle-spot";
                     }
                 }
@@ -195,8 +200,11 @@ class TakeOrder extends LifeCycleState {
      * @param {Waiter} waiter 
      */
     init(waiter) {
+
         console.log("TAKING AN ORDER", this.type);
-        waiter.actionState = new Walking(this.guestGroup.table.corners[0]);
+        this.cornerIdx = Math.floor(Math.random() * this.guestGroup.table.corners.length);
+        waiter.actionState = new Walking(this.guestGroup.table.corners[  this.cornerIdx ]);
+
     }
 
    /**
@@ -214,8 +222,10 @@ class TakeOrder extends LifeCycleState {
             if(waiter.isWalking()) {
                 if(waiter.actionState.path.hasReachedGoal) {
                     waiter.actionState = new Idle();
-                    waiter.messageBubble.showMessage(waiter.scene.symbols.question, {x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height}, 10000);
+                    waiter.messageBubble.showMessage(waiter.scene.createSymbol("question"), {x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height}, 10000);
                     this.guestGroup.waiterIsHere();
+
+                    waiter.direction = this.guestGroup.table.cornerDirections[this.cornerIdx];
 
                     // Send first ask to guest 
 
@@ -250,6 +260,7 @@ class TakeOrder extends LifeCycleState {
                         }, 1000 * 5);
     console.log("4");
                         waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random().pos);
+                          waiter.messageBubble.isShowing = false;
 
                     } else {
                         this.orderCount++;
@@ -292,7 +303,8 @@ class ServeOrder {
      */
     init(waiter) {
         console.log("Serving");
-        waiter.actionState = new Walking(this.order.guestGroup.table.corners[0]);
+        this.cornerIdx = Math.floor(Math.random() * this.order.guestGroup.table.corners.length);
+        waiter.actionState = new Walking(this.order.guestGroup.table.corners[this.cornerIdx]);
     }
 
    /**
@@ -308,8 +320,11 @@ class ServeOrder {
             if(waiter.isWalking()) {
                 if(waiter.actionState.path.hasReachedGoal) {
                     waiter.actionState = new Idle();
-                    waiter.messageBubble.showMessage(waiter.scene.symbols.smiley ,{x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height});
+                    waiter.messageBubble.showMessage(waiter.scene.createSymbol("smiley") ,{x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height});
+
+                    waiter.direction = this.order.guestGroup.table.cornerDirections[this.cornerIdx];
                 }
+                 
             } else if (!waiter.messageBubble.isShowing) {
 
                 // Tell all guests that their order is ready 

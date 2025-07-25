@@ -5,6 +5,8 @@ import { BASE_URL } from "./config.js";
 import  { Table, Chair } from "./Table.js";
 import GuestGroup from "./GuestGroup.js";
 import { menu } from "./menu.js";
+import Guest
+ from "./Guest.js";
 
 export default class Play extends Scene {
 
@@ -15,7 +17,6 @@ export default class Play extends Scene {
         this.idleSpots = [];
         this.guestGroups = [];
         this.menuItems = {};
-        this.symbols = {};
     }
 
     guestGroupLeft(guestGroup) {
@@ -28,10 +29,19 @@ export default class Play extends Scene {
         return this.guestGroups.find(gg => gg.guests.find(g => g === guest));
     }
 
+    getChairFor(guest) {
+        return this.guestGroups.find(gg => gg.guests.find(g => g === guest)).table.chairs[guest.tableSide];
+    }
+
     pickTableForGuests(guestGroup) {
         const table = this.tables.filter(t => t.isAvailable).random();
         table.isAvailable = false;
         guestGroup.table = table;
+    }
+
+    createSymbol(image) {
+        return new StaticImage(this, Symbol("symbol"), 
+                {x: 0, y: 0}, this.art.images.get(image).width, this.art.images.get(image).height, image);
     }
 
     async init() {
@@ -94,13 +104,12 @@ export default class Play extends Scene {
        
         this.background = new StaticImage(this, Symbol("background"), { x: 0, y: 0 }, 320, 226, "background");
 
-        this.#createSymbols();
         this.#createMenuItems();
-        
-        this.#createTables();
-        this.#createIdleSpots();
+         this.#createTables();
         this.#createGrid();
-
+       
+        this.#createIdleSpots();
+ 
         this.waiter = new Waiter(this, Symbol("waiter"), this.idleSpots.random().pos, 15, 32, "afro");
 
         this.#initGuests(); 
@@ -110,6 +119,7 @@ export default class Play extends Scene {
 
 
     update() {
+
         // For DEBUG
         // if (this.art.keys.up) {
         //      console.log("up")
@@ -139,9 +149,8 @@ export default class Play extends Scene {
      * @param {CanvasRenderingContext2D} ctx 
      */
     draw(ctx) {
-        this.background.draw(ctx);
 
-        // Draw helper grid?
+        this.background.draw(ctx);
 
         ctx.fillStyle = "black";
 
@@ -150,59 +159,42 @@ export default class Play extends Scene {
 
         drawGrid(ctx, ROWS, COLS, this.art.tileSize, 0, 32);
 
-        // ctx.fillStyle = "red";
+        for (let r = 0; r < this.grid.length; ++r) {
+            for (let c = 0; c < this.grid[0].length; ++c) {
+                if (this.grid[r][c] > 1) {
+                        ctx.fillStyle = "red";
+                    ctx.fillRect(c * 16, r * 16, 16, 16);
+                }
+             
+            }
+        }
 
-        // for (let r = 0; r < this.grid.length; ++r) {
-        //     for (let c = 0; c < this.grid[0].length; ++c) {
-        //         if (this.grid[r][c] === 0) {
-        //             ctx.fillRect(c * 16, r * 16, 16, 16);
-        //         }
-        //     }
-        // }
+        const objects = [
+            ...this.tables.map(t => t.chairs).flat(), ...this.tables, this.waiter, ...this.guestGroups.map(gg => gg.guests).flat(), ].sort((o1, o2) => {
+                // Special case for guest that sits south of table bc guest should be rendered first and otherwise guest should be rendered last. 
+                // Guest and Chair objects have same y if they belong together
+                if(o1 instanceof Guest && o2 instanceof Chair && (o1.isIdleSitting() || o1.isSittingDown() || o1.isStandingUp())) {
+                    if(o1.tableSide === 2 && o2.tableSide === 2) {
+                        return -1;
+                    }
+                } else if(o1 instanceof Chair && o2 instanceof Guest && (o2.isIdleSitting() || o2.isSittingDown() || o2.isStandingUp())) {
+                    if(o1.tableSide === 2 && o2.tableSide === 2) {
+                        return 1;
+                    } 
+                }  
+                 
+                // Default sort render pos on y value
+                return o1.pos.y - o2.pos.y
+            });
 
-        const guests = this.guestGroups.map(gg => gg.guests).flat();
-        const chairs = this.tables.map(t => t.chairs).flat();
+            for(const o of objects) {
+                o.draw(ctx);
+            }
+
+
         const guestGroupMessageBubbles = this.guestGroups.map(gg => gg.messageBubble);
         const guestMessageBubbles = this.guestGroups.map(gg => gg.guests).flat().map(g => g.messageBubble);
    
-
-        for(const c of chairs) {
-            // If the chair is not on the south (2) side of the table
-            if(c.tableSide !== 2) {
-                c.draw(ctx);
-            }
-        }
-
-        for(const g of guests) {
-            // If guest is not sitting on the south (2) side of the table 
-            if(!g.isIdleSitting() || g.tableSide !== 2) {
-                g.draw(ctx);
-            }
-        }
-
-        for (const t of this.tables) {
-            t.draw(ctx);
-    
-            for(const c of t.corners) {
-                this.grid[c.y / this.art.tileSize][c.x / this.art.tileSize] = 0; // Set table corners to walkable (0)
-            }
-            
-        }
-
-        for(const g of guests) {
-            // If guest is sitting at the south(2) side of the table
-            if(g.isIdleSitting() && g.tableSide === 2) {
-                g.draw(ctx);
-            }
-        }
-        
-        for(const c of chairs) {
-            // If chair is on the south (2) side of the table
-            if(c.tableSide === 2) {
-                c.draw(ctx);
-            }
-        }
-
         for(const mb of guestGroupMessageBubbles) {
             if(mb.isShowing) {
                 mb.draw(ctx);
@@ -215,34 +207,18 @@ export default class Play extends Scene {
             }
         }
 
-        /**
-         * 
-         * för en grupp av gäster och bord stol ->
-         * 
-         * Render 1 stol 0, 1, 3
-         * Render 2 gäst 0,  1, 3
-         * Render 3 bord 
-         * Render 4 gäst 2 -> om gästen är idleSitting och har tableSide s
-         * Render 5 stol 2 -> om stolen har tableSide s
-         * 
-         * 
-         * En gäst ska ju vara i idle läget och renderas ut i g.draw 
-         * 
-         */
-
-        this.waiter.draw(ctx);
-
         if(this.waiter.messageBubble.isShowing) {
-            console.log("Drawing message bubble")
             this.waiter.messageBubble.draw(ctx);
         }  
     }
 
 
     #createGrid() {
+
         this.grid = createGrid(this.art.height / 16, this.art.width / 16, 1);
         
         // Create walkable tiles (0) in grid
+
         for (let c = 0; c < 21; ++c) {
             this.grid[2][c] = 0;
             this.grid[13][c] = 0;
@@ -276,8 +252,8 @@ export default class Play extends Scene {
             }
         }
 
+    
         for(const t of this.tables) {
-            
             for(const c of t.corners) {
                 this.grid[c.y / this.art.tileSize][c.x / this.art.tileSize] = 0; // Set table corners to walkable (0)
             }
@@ -285,19 +261,10 @@ export default class Play extends Scene {
         
     }
 
-
     #createIdleSpots() {
         for (let c = 8; c < 12; ++c) {
             this.idleSpots.push({ pos: {x: c * 16, y: 2 * 16}, isAvailable: true });
         }
-    }
-
-    #createSymbols() {
-        for(const s of ["heart", "exclamation", "question", "smiley"]) {
-            this.symbols[s] = new StaticImage(this, Symbol("symbol"), 
-                {x: 0, y: 0}, this.art.images.get(s).width, this.art.images.get(s).height, s);
-        }
-           console.log(this.symbols)
     }
 
     #createMenuItems() {
@@ -323,29 +290,30 @@ export default class Play extends Scene {
             { x: 15 * tileSize, y: 10 * tileSize } ];
 
         
-        const chairPositionDiffs = [{x: tileSize / 2, y: -tileSize * 1.25
+            // n, e, s, w
+        const chairPositionDiffs = [{x: tileSize / 2, y: -tileSize * 1.5
         }, 
-            {x: tileSize * 2 - 3, y: -tileSize / 2}, 
-            {x: tileSize / 2, y: tileSize - 4 }, 
-            {x: -tileSize + 2, y: -tileSize / 2}];
+            {x: tileSize * 2, y: -tileSize / 2}, 
+            {x: tileSize / 2, y: tileSize }, 
+            {x: -tileSize, y: -tileSize / 2}];
 
-        for (const tp of tablePositions) {
+        for (let i = 0; i < tablePositions.length; ++i) {
+            const tp = tablePositions[i];
 
             const chairs = [];
        
             for(let i = 0; i < chairPositionDiffs.length; ++i) {
                 const cp = chairPositionDiffs[i];
                 const pos = {x: tp.x + cp.x, y: tp.y + cp.y};
-                chairs.push(new Chair(this, {...pos}, 17, 32, `chair-${i}`, i));
-                // this.guests.push(new Guest(this, Symbol("guest"), {...pos}, 17, 32, i));
+               
+                
+                const walkableTilesID = Math.pow(2, i + 1); // from 2 and up
+                 chairs.push(new Chair(this, {...pos}, 17, 32, `chair-${i}`, i, walkableTilesID));
             }
 
             this.tables.push(new Table(this, tp, chairs));
-        }
 
-        // for(const g of this.guests) {
-        //     g.actionState = new IdleSitting();
-        // }
+         }
     }
 
     #initGuests() {

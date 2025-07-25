@@ -74,7 +74,9 @@ export class Arrive extends LifeCycleState {
             
                 // waiter signals to follow them to a table
                 if (message !== undefined) { 
-                    guest.actionState = new Walking(message.content.table.corners[guest.tableSide]); 
+
+                    const cornerPos = message.content.table.corners[guest.tableSide]
+                    guest.actionState = new Walking(cornerPos); 
                 }   
 
             } else if (guest.isWalking()) {
@@ -193,7 +195,8 @@ export class ReceiveOrder extends LifeCycleState {
 
                     this.waiterId = message.from;
                     // Show heart as thank you
-                    guest.messageBubble.showMessage(guest.scene.symbols.heart, {x: guest.pos.x, y: guest.pos.y - guest.messageBubble.height});
+                    console.log("SHOWING HEART", guest.id);
+                    guest.messageBubble.showMessage(guest.scene.createSymbol("heart"), {x: guest.pos.x, y: guest.pos.y - guest.messageBubble.height});
 
                     this.isDone = true;
                 }
@@ -245,7 +248,7 @@ export class Order extends LifeCycleState {
                         console.log("GOT MESSAGE FROM WAITER")
                         if(this.type === "bill") {
                             // Showing message bubble width dollar sign
-                            guest.messageBubble.showMessage(guest.scene.symbols.heart, {x: guest.pos.x, y: guest.pos.y - guest.messageBubble.height});
+                            guest.messageBubble.showMessage(guest.scene.createSymbol("heart"), {x: guest.pos.x, y: guest.pos.y - guest.messageBubble.height});
 
                         }  else {
                             console.log("SHOWING MESSAGE BUBBLE FOR ITEM")
@@ -330,7 +333,8 @@ class Walking extends ActionState {
 
         if (this.path === null) {
             console.log("GOAL", this.goal)
-            this.path = new WalkPath(guest, {x: this.goal.x, y: this.goal.y});
+            const walkableTilesIDForChair = guest.scene.getGroupFor(guest).table.chairs.find(c => c.tableSide === guest.tableSide).walkableTilesID;
+            this.path = new WalkPath(guest, {x: this.goal.x, y: this.goal.y}, [0,]);
         }
 
         this.path.update(guest);
@@ -350,10 +354,9 @@ class Walking extends ActionState {
 export class IdleSitting extends ActionState {
 
     init(guest) {
-     
         guest.image = `idle-sit-${guest.tableSide}`;
-        const table = guest.scene.getGroupFor(guest).table;
-        guest.pos = table.chairs[guest.tableSide].pos;
+        const chair = guest.scene.getChairFor(guest);
+        guest.pos = chair.pos;
     }
 
     /**
@@ -386,20 +389,57 @@ class StandingUp extends ActionState {
     /**
      * @param {Guest} guest 
      */
+    init(guest) {
+
+        switch(guest.tableSide) {
+            case 0:
+                 guest.direction = "w";
+                 break;
+            case 1:
+                guest.direction = "n";
+                break;
+            case 2: 
+                guest.direction = "e";
+                break;
+            case 3:
+                guest.direction = "s";
+                break;
+        }
+
+        guest.animations.play(`walk-${guest.direction}`);
+
+    }
+
+    /**
+     * @param {Guest} guest 
+     */
     update(guest) {
 
-       if(!this.initialized) {
-            guest.animations.play(`stand-up-${guest.direction}`);
-            this.initialized = true;
-        }
+        // Guest will walk from the chair to the corner position
+ 
+        const cornerPos = guest.scene.getGroupFor(guest).table.corners[guest.tableSide];
 
-        console.log("Stand up animation should play here");
+        const diff = {x: Math.floor(cornerPos.x - guest.pos.x), y: Math.floor(cornerPos.y - guest.pos.y)};
 
+        const diffNormalize = {x: diff.x === 0 ? 0 : diff.x < 0 ? -1 : 1, y: diff.y === 0 ? 0 : diff.y < 0 ? -1 : 1};
+        
         guest.animations.update();
 
-        if (!guest.animations.isPlaying(`stand-up-${guest.direction}`)) {
-            guest.actionState = new IdleStanding(guest.direction);
+        if(diffNormalize.x !== 0 || diffNormalize.y !== 0) {
+            if(diffNormalize.x !== 0) {
+                guest.pos.x += diffNormalize.x;
+                return;
+            }
+
+            if(diffNormalize.y !== 0) {
+                guest.pos.y += diffNormalize.y;
+                return;
+            }
+
+        } else {
+            guest.actionState = new IdleStanding();
         }
+        
     }
 }
 
@@ -408,27 +448,61 @@ class SittingDown extends ActionState {
 
     constructor(){
         super();
-        this.initialized = false;
+    }
+
+    
+    /**
+     * @param {Guest} guest 
+     */
+    init(guest) {
+        switch(guest.tableSide) {
+            case 0:
+                 guest.direction = "e";
+                 break;
+            case 1:
+                guest.direction = "s";
+                break;
+            case 2: 
+                guest.direction = "w";
+                break;
+            case 3:
+                guest.direction = "n";
+                break;
+        }
+
+        guest.animations.play(`walk-${guest.direction}`);
+
     }
 
     /**
      * @param {Guest} guest 
      */
     update(guest) {
-        if(!this.initialized) {
-            guest.direction = ["n", "e", "s", "w"][guest.tableSide];
-            guest.animations.play(`sit-down-${guest.direction}`);
-            this.initialized = true;
-        }
 
-        console.log("Sitting down animation should play here");
+        // Guest will walk from the corner to the chair position
+ 
+        const chair = guest.scene.getChairFor(guest);
 
+        const diff = {x: Math.floor(chair.pos.x - guest.pos.x), y: Math.floor(chair.pos.y - guest.pos.y)};
+
+        const diffNormalize = {x: diff.x === 0 ? 0 : diff.x < 0 ? -1 : 1, y: diff.y === 0 ? 0 : diff.y < 0 ? -1 : 1};
+        
         guest.animations.update();
-
-        if (!guest.animations.isPlaying(`sit-down-${guest.direction}`)) {
-            console.log("HAS SAT DOWN", guest.tableSide)
-            guest.actionState = new IdleSitting();
+        
+        if(diffNormalize.x !== 0) {
+            guest.pos.x += diffNormalize.x;
+            return;
         }
+
+        if(diffNormalize.y !== 0) {
+            guest.pos.y += diffNormalize.y;
+            return;
+        }
+
+        // Guest will sit when arriving to chair 
+
+        guest.actionState = new IdleSitting();
+    
     }
 }
 
@@ -534,6 +608,14 @@ export default class Guest extends Sprite {
 
     isIdleSitting() {
         return this.actionState instanceof IdleSitting;
+    }
+
+    isSittingDown() {
+        return this.actionState instanceof SittingDown;
+    }
+
+    isStandingUp() {
+        return this.actionState instanceof StandingUp;
     }
 
     isWalking() {

@@ -31,7 +31,7 @@ export default class GuestGroup {
 
         // Create the guests
 
-        const numOfGuests = 2;
+        const numOfGuests = 4;
 
         if (numOfGuests === 2) {
 
@@ -56,10 +56,10 @@ export default class GuestGroup {
                 const ARRIVE_POS = { x: 0, y: 16 * 6 };
 
                 const xyDiffs = [
+                    {x: this.scene.art.tileSize, y: this.scene.art.tileSize},
                     {x: 0, y: 0}, 
-                    {x: 0, y: this.scene.art.tileSize}, 
-                    {x: this.scene.art.tileSize, y: 0},
-                    {x: this.scene.art.tileSize, y: this.scene.art.tileSize}
+                    {x: 0, y: this.scene.art.tileSize},
+                    {x: 0, y: this.scene.art.tileSize * 2}
                 ]
 
                 for (let i = 0; i < this.guests.length; ++i) {
@@ -73,7 +73,7 @@ export default class GuestGroup {
                     x: 0, 
                     y: this.guests.length > 1 ? ARRIVE_POS.y - this.messageBubble.height : ARRIVE_POS.y - this.messageBubble.height}
                     console.log("MSG BUBBLE POS", msgBubblePos)
-                    this.messageBubble.showMessage(this.scene.symbols.exclamation, 
+                    this.messageBubble.showMessage(this.scene.createSymbol("exclamation"), 
                   msgBubblePos , 10000); 
 
                 this.scene.art.services.events.add({ name: this.state.name, data: { guestGroup: this } });
@@ -100,7 +100,7 @@ export default class GuestGroup {
                     guest.lifeCycleState = new Order(this.state.type, randomIdx === i);
                 }
 
-                this.messageBubble.showMessage(this.scene.symbols.exclamation, 
+                this.messageBubble.showMessage(this.scene.createSymbol("exclamation"), 
                     {x: this.table.centerPos.x - this.messageBubble.width, y: this.table.centerPos.y - this.messageBubble.height},
                     5000
                 ); // Show ! over table
@@ -143,8 +143,8 @@ export default class GuestGroup {
 
                     // Send out order event when guests have been seated
                     setTimeout(() => {
-                        this.messageBubble.showMessage(this.scene.symbols.exclamation,
-                            {x: this.table.centerPos.x - this.messageBubble.width / 2, y: this.table.centerPos.y - this.messageBubble.height / 2},
+                        this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
+                            {x: this.table.centerPos.x - this.messageBubble.width / 2, y: this.table.centerPos.y},
                                     5000)
 
                         this.scene.art.services.events.add({ name: "order-food", data: { guestGroup: this } });
@@ -195,6 +195,9 @@ export default class GuestGroup {
 
                 
                     this.state = { name: "order", type: nextOrderType };
+                     this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
+                            {x: this.table.centerPos.x - this.messageBubble.width / 2, y: this.table.centerPos.y - this.messageBubble.height / 2},
+                                    5000)
                     console.log("Order " + this.state.type)
                     this.scene.art.services.events.add({ name: this.state.name + "-" + this.state.type, data: { guestGroup: this } });
 

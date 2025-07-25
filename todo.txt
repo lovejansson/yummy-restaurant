@@ -5,11 +5,14 @@ Fixa alla bubblor så de visar rätt content
 TODO 
 
 Äta- och dricka animeringar 
-Sätta sig och ställa sig upp animeringar 
-
 Waiter bära bricka animeringar
+
+Placera ut justin och hans band på scenen
 
 Lägg till flera stycken varianter av guests 
 Lägg till flera stycken varianter av waiters
 
-Placera ut justin och hans band på scenen 
+Buggar
+
+Ibland så går inte alla gäster efter waitern utan vissa står kvar och glor 
+Ibland så hamnar en gäst i vänt på waiterns response men waitern har dratt

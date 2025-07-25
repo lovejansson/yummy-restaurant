@@ -23,6 +23,8 @@ export default class ArtObject {
         this.pos = pos;
         this.width = width;
         this.height = height;
+        this.halfWidth = width / 2;
+        this.halfHeight = height / 2;
     }
 
     update() {
