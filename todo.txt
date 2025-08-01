@@ -1,18 +1,27 @@
-Next 
-
-Fixa alla bubblor så de visar rätt content
-
 TODO 
 
-Äta- och dricka animeringar 
-Waiter bära bricka animeringar
+***** Äta- och dricka animeringar
+TBD: drickans position 
+4 directions för allt
+Bites och Dryck spritsheets for all drinks and food items
 
-Placera ut justin och hans band på scenen
+Måste lägga in lite mer idle sitting time här också 
 
-Lägg till flera stycken varianter av guests 
-Lägg till flera stycken varianter av waiters
+***** Placera ut justin och hans band på scenen
+
+***** Lägg till flera stycken varianter av guests
+
+***** Lägg till flera stycken varianter av waiters
 
 Buggar
 
 Ibland så går inte alla gäster efter waitern utan vissa står kvar och glor 
 Ibland så hamnar en gäst i vänt på waiterns response men waitern har dratt
+Gäst går in i waiter vid Arrive 
+menu items som guest beställer är undefined ibland
+Rendering så att det matchar med speed på spriten
+
+
+LIB
+
+Animation manager frames input with ms per frame 

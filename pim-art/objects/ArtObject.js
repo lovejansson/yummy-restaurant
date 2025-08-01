@@ -13,21 +13,15 @@ export default class ArtObject {
     /**
      * @param {Scene} scene
      * @param {Symbol} id
-     * @param {{ x: number, y: number }} pos
-     * @param {number} width
-     * @param {number} height
+
      */
-    constructor(scene, id, pos, width, height) {
+    constructor(scene, id) {
         this.scene = scene;
         this.id = id;
-        this.pos = pos;
-        this.width = width;
-        this.height = height;
-        this.halfWidth = width / 2;
-        this.halfHeight = height / 2;
     }
 
     update() {
+    
     }
 
     draw() {

@@ -15,7 +15,6 @@ export class Table extends StaticImage {
     /**
      * @param {Scene} scene
      * @param {{ x: number, y: number }} pos
-     * @param {number} walkableTilesID
      * @param {Chair[]} chairs
      */
     constructor(scene, pos, chairs) {
@@ -23,15 +22,49 @@ export class Table extends StaticImage {
 
         this.isAvailable = true;
         this.chairs = chairs;
-
         this.corners = [{ x: pos.x - scene.art.tileSize, y: pos.y - scene.art.tileSize * 2},
                         { x: pos.x + scene.art.tileSize * 2, y: pos.y - scene.art.tileSize * 2 },
                         { x: pos.x + scene.art.tileSize * 2, y: pos.y + scene.art.tileSize},
-                        { x: pos.x - scene.art.tileSize, y: pos.y + scene.art.tileSize }];
-        this.cornerDirections = ["se", "sw", "nw", "ne"];
-        this.chairDirections = ["s", "w", "n", "e"];
+                        { x: pos.x - scene.art.tileSize, y: pos.y + scene.art.tileSize }];                
+        this.cornerDirections = ["se", "sw", "nw", "ne"]; // Get dir based on corner index 
+        this.chairDirections = ["s", "w", "n", "e"]; // Get dir based on chair index i.e. tableSide
+        this.centerPos = {x: this.pos.x + this.halfWidth, y: this.pos.y + this.halfHeight};
+    }
 
-        this.centerPos = {x: this.pos.x + this.width / 2, y: this.pos.y + this.height / 2};
+     /**
+     * Get position for a menu item on the table
+     * @param {"food" | "dessert" | "drink"} type
+     * @param {import("./menu.js").MenuItem} menuItem
+     * @param { 0 | 1 | 2 | 3 } tableSide
+     * @returns {{x: number, y: number}} pos 
+     */
+    getMenuItemPos(type, menuItem, tableSide) {
+        switch(type) {
+            case "food":
+            case "dessert":
+                switch(tableSide) {
+                    case 0:
+                        return {x: this.pos.x + this.scene.art.tileSize - Math.floor(menuItem.width / 2), y: this.pos.y + 1};
+                    case 1:
+                        return {x: this.pos.x + this.width - menuItem.width - 4, y: this.pos.y + (this.height / 2) - menuItem.height};
+                    case 2:
+                        return {x:  this.pos.x + this.scene.art.tileSize - Math.floor(menuItem.width / 2), y: this.pos.y + this.scene.art.tileSize - 1};
+                    case 3:
+                        return {x: this.pos.x + 4,  y: this.pos.y + (this.height / 2) - menuItem.height - 1};
+                }
+            case "drink":
+                switch(tableSide) {
+                    case 0:
+                        return {x: this.pos.x + 10, y: this.pos.y + menuItem.height};
+                    case 1:
+                        return {x: this.pos.x + 20, y: this.pos.y + 6};
+                    case 2:
+                        return {x: this.pos.x + 20, y: this.pos.y + 13};
+                    case 3:
+                        return {x: this.pos.x + 10, y: this.pos.y + 12};
+                }
+        }
+        
     }
 }
 
@@ -44,28 +77,9 @@ export class Chair extends StaticImage {
      * @param {number} height
      * @param {string} image
      * @param {number} tableSide
-     * @param {number} walkableTilesID
      */
-    constructor(scene, pos, width, height, image, tableSide, walkableTilesID) {
+    constructor(scene, pos, width, height, image, tableSide) {
         super(scene, Symbol("chair"), pos, width, height, image);
-
         this.tableSide = tableSide;
-        this.walkableTilesID = walkableTilesID;
-
-        switch(this.tableSide) {
-            case 0:
-                this.frontPos = {x: this.pos.x + this.halfWidth, y: this.pos.y + this.height};
-                break;
-            case 1:
-                this.frontPos = {x: this.pos.x, y: this.pos.y};
-                break;
-            case 2:
-                this.frontPos = {x: this.pos.x + this.halfWidth, y: this.pos.y};
-                break;
-            case 3:
-                this.frontPos = {x: this.pos.x + this.halfWidth, y: this.pos.y};
-                break;
-
-        }
     }
 }

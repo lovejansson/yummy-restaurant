@@ -17,10 +17,11 @@
 /**
  * @typedef SpriteSheetAnimation
  * @property {"spritesheet"} type 
- * @property {string} frames
- * @property {number} frameRate
- * @property {number} numberOfFrames
- * @property {number} [startIdx]
+ * @property {string} frames 
+* @property {string} [overlayFrames] 
+* @property {number} frameRate 
+* @property {number} numberOfFrames 
+* @property {number} [startIdx] 
  */
 
 
@@ -44,7 +45,6 @@ export default class AnimationManager {
         /** @type {{config: AnimationConfig, currentIndex: number, frameCount: number}|null} */
         this.playingAnimation = null;  
 
-        
     }
 
     /**
@@ -158,18 +158,23 @@ export default class AnimationManager {
         if (this.playingAnimation) {
 
             if(this.playingAnimation.config.type === "frames") {
+                
                 const image = this.sprite.scene.art.images.get(this.playingAnimation.config.frames[this.playingAnimation.currentIndex].image);
+                
                 ctx.drawImage(image, 
                     this.playingAnimation.currentIndex * (this.sprite.width), 
                     0, 
                     this.sprite.width, 
                     this.sprite.height, 
                     this.sprite.pos.x, 
-                   this.sprite.pos.y, 
+                    this.sprite.pos.y, 
                     this.sprite.width, 
                     this.sprite.height);
+
             } else if (this.playingAnimation.config.type === "spritesheet") {
+
                 const image = this.sprite.scene.art.images.get(this.playingAnimation.config.frames);
+
                 ctx.drawImage(image,
                     this.playingAnimation.currentIndex * this.sprite.width,
                     0,
@@ -179,9 +184,22 @@ export default class AnimationManager {
                     this.sprite.pos.y, 
                     this.sprite.width,
                     this.sprite.height);
+
+                if(this.playingAnimation.config.overlayFrames !== undefined) {
+                    const image = this.sprite.scene.art.images.get(this.playingAnimation.config.overlayFrames);
+ 
+                    ctx.drawImage(image,
+                        this.playingAnimation.currentIndex * this.sprite.width,
+                        0,
+                        this.sprite.width,
+                        this.sprite.height,
+                        this.sprite.pos.x,
+                        this.sprite.pos.y, 
+                        this.sprite.width,
+                        this.sprite.height);
+                }
             }
         }
-
     }
 }
 

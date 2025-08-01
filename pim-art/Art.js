@@ -25,7 +25,6 @@ const FRAME_RATE_DEFAULT = 60;
 const CANVAS_SELECTOR_DEFAULT = "canvas";
 const DEFAULT_TILE_SIZE = 16;
 
-
 /**
  * @description The main class for managing the art piece; switching between the play and pause scenes, loading assets, and managing services like images and audio. 
  */

@@ -15,19 +15,19 @@ const getNeighbours = (cell, grid, includeDiagonalNeighbours = false) => {
   
     const rows = grid.length;
     const cols = grid[0].length;
-
     const neighbours = [];
 
     const neighbourDiffs = includeDiagonalNeighbours ? 
-    [[-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1]] 
-    : 
-    [[-1, 0], [0, 1], [1, 0], [0, -1]]
+        [
+        [-1, -1], [-1, 0], [-1, 1], 
+        [0, -1],     [0, 1], 
+        [1, -1], [1, 0], [1, 1]] 
+        : 
+        [[-1, 0], [0, 1], [1, 0], [0, -1]]
 
     for(const [r, c] of neighbourDiffs) {
-        const neighbour = {row: cell.row + r, col: cell.col + c};
-      
-        if(neighbour.row !== -1 && neighbour.col !== -1 && neighbour.row !== rows - 1 && neighbour.col !== cols - 1 
-          ) neighbours.push(neighbour);     
+        const n = {row: cell.row + r, col: cell.col + c};
+        if(n.row !== -1 && n.col !== -1 && n.row !== rows && n.col !== cols) neighbours.push(n);     
     }
 
     return neighbours;
@@ -53,7 +53,7 @@ function createPathBFS(start, end, grid) {
         let curr = end;
 
         let path = [end];
-        console.log(pathMap)
+        // console.log(pathMap)
         
         while (!(curr.row === start.row && curr.col === start.col)) {
           
@@ -106,12 +106,12 @@ function createPathBFS(start, end, grid) {
  * 
  */
 function createPathAStar(start, end, grid, walkableTileValues = [0]) {
-     console.log("Creating path from " + JSON.stringify(start) + " to " + JSON.stringify(end));
-    console.log(grid[start.row][start.col], grid[end.row][end.col]);
+    //  console.log("Creating path from " + JSON.stringify(start) + " to " + JSON.stringify(end));
+    //  console.log(grid[start.row][start.col], grid[end.row][end.col]);
 
-    console.log(grid);
+    // console.log(grid);
 
-    console.log("WALKABLE TILE VALUES ", walkableTileValues)
+    // console.log("WALKABLE TILE VALUES ", walkableTileValues)
     
     if(!walkableTileValues.includes(grid[start.row][start.col])) throw new Error("Start cell is a non walkable cell." + grid[start.row][start.col]);
     if(!walkableTileValues.includes(grid[end.row][end.col])) throw new Error("End cell is a non walkable cell." + grid[end.row][end.col]);
@@ -125,11 +125,9 @@ function createPathAStar(start, end, grid, walkableTileValues = [0]) {
 
         let curr = end;
         let path = [end];
-
-        while ( curr !== null && start !== null && !(curr.row === start.row && curr.col === start.col)) {
-           
+    
+        while (curr !== null) {
             curr = pathMap[curr.row][curr.col];
-
             if(curr) {
                 path.push(curr);
             }
@@ -153,20 +151,21 @@ function createPathAStar(start, end, grid, walkableTileValues = [0]) {
     let curr;
 
     while(openList.length > 0) {
+     
         // Find cell with lowest score in the openList bc this is the most optimal path to take
-        curr = openList.reduce((cellMinScore, curr) => {
-            if(cellMinScore === undefined 
-                || scoresMap[curr.row][curr.col] < scoresMap[cellMinScore.row][cellMinScore.col]) {
+        curr = openList.reduce((optimalCell, curr) => {
+            if(optimalCell === undefined 
+                || scoresMap[curr.row][curr.col] < scoresMap[optimalCell.row][optimalCell.col]) {
                 return curr;
             }
 
-            return cellMinScore;
+            return optimalCell;
 
         }, undefined);
 
         // We reached the end cell
         if(curr.row === end.row && curr.col === end.col) break;
-        
+
         const neighbours = getNeighbours(curr, grid, true);
 
         const g = scoresMap[curr.row][curr.col] + 1; 
@@ -186,17 +185,16 @@ function createPathAStar(start, end, grid, walkableTileValues = [0]) {
             } else if (cellInClosedList && scoresMap[cellInClosedList.row][cellInClosedList.col] < f)  {
                 continue;
             } else {
-       
-                if(!cellInOpenedList) openList.push(n); 
+                if(cellInOpenedList === undefined) openList.push(n); 
                 scoresMap[n.row][n.col] = f;
                 pathMap[n.row][n.col] = curr;
+                // Vi kommer inte in hit för att lägga till pathmap[end.row][end.col]
             }
         }
 
         openList.remove(curr);
         closeList.push(curr);
     }
-
     return reconstructPath(pathMap);
 }
 

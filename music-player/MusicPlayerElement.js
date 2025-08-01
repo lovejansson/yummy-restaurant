@@ -44,7 +44,7 @@ export default class MusicPlayerElement extends HTMLElement {
 
     async connectedCallback() {
         
-        if(DEBUG) console.log(`Connected music player element: ${this.getAttribute("channel")} ${this.getAttribute("playlist")}`);
+        //if(DEBUG) // console.log(`Connected music player element: ${this.getAttribute("channel")} ${this.getAttribute("playlist")}`);
 
         const playerContainer = this.shadowRoot.querySelector("#player-container");
         const player = this.shadowRoot.querySelector("#player");
@@ -123,15 +123,15 @@ export default class MusicPlayerElement extends HTMLElement {
 
 
     attributeChangedCallback(name, oldValue, newValue) {
-       if(DEBUG) console.log(`Attribute ${name} has changed from ${oldValue} to ${newValue}`);
+       //if(DEBUG) // console.log(`Attribute ${name} has changed from ${oldValue} to ${newValue}`);
     }
 
 
     handlePlayerStateChange(event) {
-        if(DEBUG) console.log(`Player state changed: ${PlayerStates.get(event.data) || event.data}`);
+        if(DEBUG) // console.log(`Player state changed: ${PlayerStates.get(event.data) || event.data}`);
 
         if (event.data === YT.PlayerState.ENDED) {
-            if(DEBUG) console.log("Song ended");
+            if(DEBUG) // console.log("Song ended");
             this.pickSong();
             event.target.playVideo();
         }

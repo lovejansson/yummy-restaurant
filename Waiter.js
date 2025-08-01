@@ -1,8 +1,10 @@
+import Guest from "./Guest.js";
 import GuestGroup from "./GuestGroup.js";
 import { MessageBubble } from "./message.js";
 import { Sprite } from "./pim-art/index.js";
+import Play from "./Play.js";
+import TableOrder from "./TableOrder.js";
 import { WalkPath } from "./WalkPath.js";
-
 
 class ActionState {
     /**
@@ -13,13 +15,6 @@ class ActionState {
     }
 }
 
-/**
- * Waiter's life cycle states are:
- * Waiting
- * Welcoming
- * TakingOrder
- * ServingOrder
- */
 class LifeCycleState {
     /**
      * @param {Waiter} waiter 
@@ -35,7 +30,6 @@ class LifeCycleState {
         throw new Error("Method 'update' must be implemented by subclass.");
     }
 }
-
 
 class Wait extends LifeCycleState {
     /**
@@ -56,7 +50,7 @@ class Wait extends LifeCycleState {
 
         if (event !== undefined) {
             
-            console.log("Event received by waiter: ", event);
+            // console.log("Event received by waiter: ", event);
 
             switch (event.name) {
                 case "order-food":
@@ -65,6 +59,10 @@ class Wait extends LifeCycleState {
                 case "order-dessert":
                     waiter.lifeCycleState = new TakeOrder("dessert", event.data.guestGroup);
                     break;
+                 case "order-done":
+                    {  
+                    waiter.lifeCycleState = new CleanOrder(event.data.guestGroup);
+                    break;}
                 case "order-bill":
                     waiter.lifeCycleState = new TakeOrder("bill", event.data.guestGroup);
                     break;
@@ -72,14 +70,7 @@ class Wait extends LifeCycleState {
                     waiter.lifeCycleState = new Welcome(event.data.guestGroup); 
                     break;
                 case "order-ready":
-                    const order = waiter.scene.orders.find(o => o === event.data.order);
-
-                    if(order === undefined) {
-                        console.error("Order for event order-ready with id " + event.data.order.id.toString() + " not found :|||");
-                        break;
-                    }
-
-                    waiter.lifeCycleState = new ServeOrder(order);
+                    waiter.lifeCycleState = new ServeOrder(event.data.order);
                     break;
             }
         }
@@ -105,7 +96,7 @@ class Welcome extends LifeCycleState {
      * @param {Waiter} waiter 
      */
     init(waiter) {
-        console.log("Welcoming guests");
+        // console.log("Welcoming guests");
    
         const pos = this.guestGroup.guests.length > 2 ? 
         {x: waiter.scene.art.tileSize * 2, y: this.guestGroup.guests[0].pos.y + waiter.scene.art.tileSize} : 
@@ -131,7 +122,7 @@ class Welcome extends LifeCycleState {
                 } else if (!waiter.messageBubble.isShowing) {
 
                     waiter.scene.pickTableForGuests(this.guestGroup);
-                    console.log("2");
+                    // console.log("2");
                     
                     this.cornerIdx = Math.floor(Math.random() * this.guestGroup.table.corners.length);
                 
@@ -146,7 +137,7 @@ class Welcome extends LifeCycleState {
                     // The waiter will notify the guests one by one to follow them for each tile they pass
                     if(this.lastGuestNotifiedIdx < this.guestGroup.guests.length && 
                         waiter.actionState.path.getCellCount() !== this.lastGuestNotifiedIdx) {
-                        waiter.scene.art.services.messages.send({table: this.guestGroup.table}, waiter.id, this.guestGroup.guests[this.lastGuestNotifiedIdx].id);
+                        waiter.scene.art.services.messages.send({table: this.guestGroup.table}, waiter, this.guestGroup.guests[this.lastGuestNotifiedIdx]);
                         this.lastGuestNotifiedIdx = waiter.actionState.path.getCellCount();
                     }
 
@@ -172,8 +163,8 @@ class Welcome extends LifeCycleState {
                     }
 
                 } else if(!waiter.messageBubble.isShowing) {
-                    console.log("IDLE SPOT START WALKING BACK")
-                    waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random().pos);
+                    // console.log("IDLE SPOT START WALKING BACK")
+                    waiter.actionState = new Walking(waiter.scene.getIdlePos());
                 }
      
                 break;
@@ -192,7 +183,7 @@ class TakeOrder extends LifeCycleState {
         this.type = type;
         this.guestGroup = guestGroup;
         this.hasTakenOrder = false;
-        this.order = {id: Symbol("order"), guestGroup, orders: []};
+        this.tableOrder = new TableOrder(type, guestGroup);
         this.orderCount = 0;
     }
 
@@ -201,7 +192,7 @@ class TakeOrder extends LifeCycleState {
      */
     init(waiter) {
 
-        console.log("TAKING AN ORDER", this.type);
+        // console.log("TAKING AN ORDER", this.type);
         this.cornerIdx = Math.floor(Math.random() * this.guestGroup.table.corners.length);
         waiter.actionState = new Walking(this.guestGroup.table.corners[  this.cornerIdx ]);
 
@@ -231,41 +222,42 @@ class TakeOrder extends LifeCycleState {
 
                     if(this.type === "bill") {
                         console.dir(this.guestGroup.guests)
-                        console.log("BILL TO", this.guestGroup.guests.find(g => g.lifeCycleState.shouldTakeBill)?.id)
-                        waiter.scene.art.services.messages.send("order plz", waiter.id, this.guestGroup.guests.find(g => g.lifeCycleState.shouldTakeBill)?.id);
+                        // console.log("BILL TO", this.guestGroup.guests.find(g => g.lifeCycleState.shouldTakeBill)?.id)
+                        waiter.scene.art.services.messages.send("order plz", waiter, this.guestGroup.guests.find(g => g.lifeCycleState.shouldTakeBill));
                     } else {
-                        waiter.scene.art.services.messages.send("order plz", waiter.id, this.guestGroup.guests[this.orderCount].id);
+                        waiter.scene.art.services.messages.send("order plz", waiter, this.guestGroup.guests[this.orderCount]);
                     }
         
                 }
 
             }
              else  {
-                console.log("WAITER CHECKING FOR MESSAGES")
-                const message =  waiter.scene.art.services.messages.receive(waiter.id);
+
+                const message =  waiter.scene.art.services.messages.receive(waiter);
 
                 if(message !== undefined) {
-                    console.log("WAITER GOT ORDER FROM GUEST")
-                    this.order.orders.push({guestId: message.from, items: message.content.items});
 
-                    if(this.type === "bill" || this.order.orders.length === this.guestGroup.guests.length) {
+
+                    this.tableOrder.guestOrders.push({guest: message.from, items: message.content.items});
+
+                    if(this.type === "bill" || this.tableOrder.guestOrders.length === this.guestGroup.guests.length) {
 
                         this.hasTakenOrder = true;
 
-                        waiter.scene.orders.push(this.order); 
+                        waiter.scene.orders.push(this.tableOrder); 
    
                         // After 5 min the order is ready to pick up 
                         setTimeout(() => {
-                            waiter.scene.art.services.events.add({name: "order-ready", data: {order: this.order}});
+                            waiter.scene.art.services.events.add({name: "order-ready", data: {order: this.tableOrder}});
                         }, 1000 * 5);
-    console.log("4");
-                        waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random().pos);
-                          waiter.messageBubble.isShowing = false;
+
+                        waiter.actionState = new Walking(waiter.scene.getIdlePos());
+                        waiter.messageBubble.isShowing = false;
 
                     } else {
                         this.orderCount++;
                         // Send ask to next guest
-                        waiter.scene.art.services.messages.send("order plz", waiter.id, this.guestGroup.guests[this.orderCount].id);
+                        waiter.scene.art.services.messages.send("order plz", waiter, this.guestGroup.guests[this.orderCount]);
                        
                     }
                 }   
@@ -275,27 +267,17 @@ class TakeOrder extends LifeCycleState {
 }
 
 
-/**
- * @typedef TableOrder
- * @property {"food" | "dessert" | "bill"} type
- * @property {Symbol} id
- * @property {GuestGroup} guestGroup
- * @property {Order[]} orders
- */
-
-/**
- * @typedef Order
- * @property {Symbol} guestId
- * @property {import("./menu.js").MenuItem[]} items
- */
-
 class ServeOrder {
     /**
      * @param {TableOrder} order
      */
     constructor(order) {
         this.order = order;
-        this.hasServed = false;
+        /**
+         * @type {"kitchen" | "serve" | "idle"}
+         */
+        this.currGoal = "kitchen";
+        this.cornerIdx = Math.floor(Math.random() * this.order.guestGroup.table.corners.length);
     }
 
     /**
@@ -303,43 +285,102 @@ class ServeOrder {
      */
     init(waiter) {
         console.log("Serving");
-        this.cornerIdx = Math.floor(Math.random() * this.order.guestGroup.table.corners.length);
-        waiter.actionState = new Walking(this.order.guestGroup.table.corners[this.cornerIdx]);
+        waiter.actionState = new Walking(waiter.scene.getKitchenPos());
     }
 
    /**
      * @param {Waiter} waiter 
      */
     update(waiter) {
-        if(this.hasServed) {
+        switch(this.currGoal) {
+            case "kitchen":
+                if(waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
+                    this.currGoal = "serve";
+                    waiter.actionState = new Walking(this.order.guestGroup.table.corners[this.cornerIdx], true)
+                }
+
+                break;
+            case "serve":
+                if(waiter.isWalking()) {
+                    if(waiter.actionState.path.hasReachedGoal) {
+                        waiter.actionState = new Idle();
+                        waiter.messageBubble.showMessage(waiter.scene.createSymbol("smiley") ,{x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height});
+                        waiter.direction = this.order.guestGroup.table.cornerDirections[this.cornerIdx];
+                    }
+                    
+                } else if (!waiter.messageBubble.isShowing) {
+                    for(const o of this.order.guestOrders) {
+                        waiter.scene.art.services.messages.send({order: this.order}, waiter, o.guest); 
+                    }
+
+                    this.order.isServed = true;
+        
+                    this.currGoal = "idle";
+                    waiter.actionState = new Walking(waiter.scene.getIdlePos());
+                }
+
+                break;
+            case "idle":
+                   if(waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
+                        waiter.lifeCycleState = new Wait();
+                    }
+                break;
+        }
+    }
+}
+
+class CleanOrder extends LifeCycleState {
+    /**
+     * @param {GuestGroup} guestGroup
+     */
+    constructor(guestGroup) {
+        super()
+        this.guestGroup = guestGroup;
+        this.hasCleanedOrder = false;
+    }
+
+    /**
+     * @param {Waiter} waiter 
+     */
+    init(waiter) {
+        // console.log("CleanTableOrder");
+        this.cornerIdx = Math.floor(Math.random() * this.guestGroup.table.corners.length);
+        waiter.actionState = new Walking(this.guestGroup.table.corners[this.cornerIdx]);
+    }
+
+    /**
+     * @param {Waiter} waiter 
+     */
+    update(waiter) {
+        if(this.hasCleanedOrder) {
+
             if(waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
                 waiter.lifeCycleState = new Wait();
             }
 
         } else {
             if(waiter.isWalking()) {
+
                 if(waiter.actionState.path.hasReachedGoal) {
                     waiter.actionState = new Idle();
                     waiter.messageBubble.showMessage(waiter.scene.createSymbol("smiley") ,{x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height});
-
-                    waiter.direction = this.order.guestGroup.table.cornerDirections[this.cornerIdx];
+                    waiter.direction = this.guestGroup.table.cornerDirections[this.cornerIdx];
                 }
                  
             } else if (!waiter.messageBubble.isShowing) {
 
-                // Tell all guests that their order is ready 
-                for(const o of this.order.orders) {
-                    console.log(o)
-                    waiter.scene.art.services.messages.send({items: o.items}, waiter.id, o.guestId); 
-                }
-          
-                this.hasServed = true;
-                    console.log("W5");
-                waiter.actionState = new Walking(waiter.scene.idleSpots.filter(i => i.isAvailable).random().pos);
+                waiter.scene.art.services.messages.send(null, waiter,  this.guestGroup.guests); 
+                
+                this.hasCleanedOrder = true;
+
+                waiter.scene.removeOrder(waiter.scene.getOrderFor(this.guestGroup));
+
+                waiter.actionState = new Walking(waiter.scene.getIdlePos());
             }
         }
     }
 }
+
 
 
 class Walking extends ActionState {
@@ -347,32 +388,31 @@ class Walking extends ActionState {
     /**
      * @type {{x: number, y: number}}
      */
-    goal;
+    goalPos;
 
     /**
      * @type {WalkPath?}
      */
     path;
 
-    constructor(goal) {
+    constructor(goalPos, isServing = false) {
         super();
-        console.log("NEW WALKING", goal)
-        this.goal = goal;
+        this.goalPos = goalPos;
         this.path = null;
+        this.isServing = isServing;
     }
 
     /**
      * @param {Waiter} waiter 
      */
     update(waiter) {
-        // console.log(this.path)
 
-        if(!waiter.animations.isPlaying(`walk-${waiter.direction}`)) {
-            waiter.animations.play(`walk-${waiter.direction}`);
+        if(!waiter.animations.isPlaying(`walk-${waiter.direction}${this.isServing ? "-serve" : ""}`)) {
+            waiter.animations.play(`walk-${waiter.direction}${this.isServing ? "-serve" : ""}`);
         }
         
         if (this.path === null) {
-            this.path = new WalkPath(waiter, this.goal);
+            this.path = new WalkPath(waiter, this.goalPos);
         }
         
         this.path.update(waiter);
@@ -414,7 +454,7 @@ export default class Waiter extends Sprite {
 
 
      /**
-     * @param {Scene} scene
+     * @param {Play} scene
      * @param {Symbol} id
      * @param {{ x: number, y: number }} pos
      * @param {number} width
@@ -435,6 +475,15 @@ export default class Waiter extends Sprite {
         this.animations.create("walk-nw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 20, loop: true});
         this.animations.create("walk-w", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 24, loop: true});
         this.animations.create("walk-sw", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 28, loop: true});
+
+        this.animations.create("walk-s-serve", {type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 0, loop: true });
+        this.animations.create("walk-se-serve", {type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 4 , loop: true});
+        this.animations.create("walk-e-serve", {type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 8 , loop: true});
+        this.animations.create("walk-ne-serve", {type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 12, loop: true });
+        this.animations.create("walk-n-serve", {type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 16, loop: true});
+        this.animations.create("walk-nw-serve", {type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 20, loop: true});
+        this.animations.create("walk-w-serve", {type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 24, loop: true});
+        this.animations.create("walk-sw-serve", {type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 28, loop: true});
 
         this.animations.create("idle-s", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 0 , loop: true});
         this.animations.create("idle-se", {type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 4 , loop: true});

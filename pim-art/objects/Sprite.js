@@ -17,7 +17,12 @@ export default class Sprite extends ArtObject {
      * @param {string | undefined} image 
      */
     constructor(scene, id, pos, width, height, image = undefined) {
-        super(scene, id, pos, width, height);
+        super(scene, id);
+        this.pos = pos;
+        this.width = width;
+        this.height = height;
+        this.halfWidth = width / 2;
+        this.halfHeight = height / 2;
         this.animations = new AnimationManager(this);
         this.image = image;
     }
@@ -36,7 +41,7 @@ export default class Sprite extends ArtObject {
 
         // Draw static image for sprite
         if(this.image) {
-            // console.log("DRAWING IMAGE OF ", this.image, this.scene.art.images.get(this.image))
+           // console.log("DRAWING IMAGE OF ", this.image, this.scene.art.images.get(this.image))
             ctx.drawImage(this.scene.art.images.get(this.image), this.pos.x, this.pos.y);
         } else {
             // Draw animation for sprite

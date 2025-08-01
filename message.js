@@ -1,4 +1,4 @@
-import { Scene, StaticImage } from "./pim-art/index.js";
+import { ArtObject, Scene, StaticImage } from "./pim-art/index.js";
 
 
 /**
@@ -8,7 +8,7 @@ import { Scene, StaticImage } from "./pim-art/index.js";
 export default class MessagesManager {
 
     /**
-     * @type {Map<Symbol, {content: any, from: Symbol}>}
+     * @type {Map<Symbol, {content: any, from: ArtObject}>}
      */
     #messages;
 
@@ -18,28 +18,29 @@ export default class MessagesManager {
 
     /**
      * @param {any} msg 
-     * @param {string} from 
-     * @param {Symbol[] | Symbol} to 
+     * @param {ArtObject} from 
+     * @param {ArtObject[] | ArtObject} to 
      */
     send(msg, from, to) {
-        if(typeof to === 'symbol') {
-            this.#messages.set(to, {content: msg, from});
-        } else {
-            for(const t of to) {
-                this.#messages.set(t, {content: msg, from});
+        if(Array.isArray(to)) {
+             for(const t of to) {
+                this.#messages.set(t.id, {content: msg, from});
             }
+           
+        } else {
+           this.#messages.set(to.id, {content: msg, from});
         }
     }
 
      /**
-     * @param {Symbol} to id for the receiver of the message
+     * @param {ArtObject} to id for the receiver of the message
      */
     receive(to) {
-        const message = this.#messages.get(to);
+        const message = this.#messages.get(to.id);
 
         // Message is 'picked up' 
         if(message !== undefined) {
-            this.#messages.delete(to);
+            this.#messages.delete(to.id);
         }
 
         return message;
@@ -65,22 +66,24 @@ export class MessageBubble {
         this.bubble = new StaticImage(scene, Symbol("msg-bubble"),  {x: 0, y: 0}, 15, 16, "msg-bubble");
         this.width = this.bubble.width;
         this.height = this.bubble.height;
+        this.halfWidth = this.bubble.halfWidth;
+        this.halfHeight = this.bubble.halfHeight;
     }
 
     /**
      * 
      * @param {StaticImage} msg 
-     * @param {{x: number, y: number}} pos 
+     * @param {{x: number, y: number}} bubblePos 
      * @param {number} [duration] 
      */
-    showMessage(msg, pos, duration = 2000) {
-        this.bubble.pos = pos;
+    showMessage(msg, bubblePos, duration = 2000) {
+        this.bubble.pos = bubblePos;
 
-        const bubbleCenterPos = {x: pos.x + this.bubble.width / 2, y: pos.y + this.bubble.height / 2};
+        const bubbleCenterPos = {x: bubblePos.x + this.bubble.halfWidth, y: bubblePos.y + this.bubble.halfHeight};
 
         this.content = msg;
 
-        this.content.pos = {x: Math.floor(bubbleCenterPos.x - this.content.width / 2), y: Math.floor(bubbleCenterPos.y - this.content.height / 2) };
+        this.content.pos = {x: Math.floor(bubbleCenterPos.x - this.content.halfWidth), y: Math.floor(bubbleCenterPos.y - this.content.halfHeight) };
 
         this.isShowing = true;
 
@@ -91,7 +94,6 @@ export class MessageBubble {
 
     draw(ctx) {
         if(this.isShowing) {
-     
             this.bubble.draw(ctx);
             this.content.draw(ctx);
         }

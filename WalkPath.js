@@ -29,7 +29,7 @@ export class WalkPath {
         this.#currPos = this.sprite.pos;
         this.#currPixelDiff = 0;
         this.#currCellIdx = 0;
-        
+
         const diff = this.#calculateXYUpdateDiff();
         this.sprite.direction = directionLables[diff.y + 1][diff.x + 1];
     
