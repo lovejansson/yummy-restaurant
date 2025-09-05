@@ -15,29 +15,51 @@ const directionLables =
  */
 export class WalkPath {
 
+    static LOGGER_TAG = "WalkPath"
+
+     /**
+     * @type {boolean}
+     */
     hasReachedGoal;
+    /**
+     * @type {number}
+     */
+    cellCount;
 
     #currPos;
     #currPixelDiff;
     #path;
     #currCellIdx;
+    #goalCell;
 
-    constructor(sprite, goalPos, walkableTileValues = [0]) {
+    constructor(sprite, goalPos) {
+
         this.sprite = sprite;
-        this.#path = createPathAStar(sprite.getGridPos(), {row: Math.floor(goalPos.y / 16), col: Math.floor(goalPos.x / 16)}, sprite.scene.grid, walkableTileValues);
+
+        console.debug(WalkPath.LOGGER_TAG, "constructor", this.sprite.id);
+         this.#goalCell = {row: Math.floor(goalPos.y / 16), col: Math.floor(goalPos.x / 16)};
+            this.#path = createPathAStar(
+            { col: Math.floor(this.sprite.pos.x / this.sprite.scene.art.tileSize), row: Math.floor(this.sprite.pos.y / this.sprite.scene.art.tileSize)}, 
+            this.#goalCell, 
+            this.sprite.scene.grid, [0, this.sprite.id]);
+    
+        this.sprite.scene.grid[this.#goalCell.row][this.#goalCell.col] = this.sprite.id;
 
         this.#currPos = this.sprite.pos;
         this.#currPixelDiff = 0;
         this.#currCellIdx = 0;
+        this.hasReachedGoal = false;
+        this.cellCount = 0;
 
         const diff = this.#calculateXYUpdateDiff();
         this.sprite.direction = directionLables[diff.y + 1][diff.x + 1];
-    
+
     }
 
     update() {
-        // TODO: synka updates med användaren. 
+
         if(!this.hasReachedGoal) {
+         
             this.#updatePosition();
 
             if (this.#currPixelDiff === 16) {
@@ -51,24 +73,33 @@ export class WalkPath {
         return this.#currPos;
     }
 
-    getCellCount(){
-        return this.#currCellIdx; 
+    #verifyNextCell() {
+        const cell = this.#path[this.#currCellIdx];
+        
+        if(this.#currCellIdx === this.#path.length - 1) {
+            this.hasReachedGoal = true;
+            this.sprite.scene.grid[this.#goalCell.row][this.#goalCell.col] = 0;
+        } else if (![0, this.sprite.id].includes(this.sprite.scene.grid[cell.row][cell.col])){
+            // Someone is occupying next cell so we create a new path from current cell to the end!
+            console.debug(WalkPath.LOGGER_TAG, "Recreacting path bc. of occupied cell");
+ 
+            this.#path = createPathAStar(cell, this.#goalCell, this.sprite.scene.grid, [0, this.sprite.id]);
+            this.#currCellIdx = 0;
+        } 
+
+        const diff = this.#calculateXYUpdateDiff();
+        this.sprite.direction = directionLables[diff.y + 1][diff.x + 1];
     }
 
     #updateNextCell() {
         this.#currCellIdx++;
-        if(this.#currCellIdx === this.#path.length - 1) {
-            this.hasReachedGoal = true;
-            
-        } else {
-            const diff = this.#calculateXYUpdateDiff();
-            this.sprite.direction = directionLables[diff.y + 1][diff.x + 1];
-        }
+        this.cellCount++;
+        this.#verifyNextCell();
     }
 
     #calculateXYUpdateDiff() {
         const currCell = this.#path[this.#currCellIdx];
-    
+
         if (this.#currCellIdx === this.#path.length - 1) {
             const prev = this.#path[this.#currCellIdx - 1];
             return { y: currCell.row - prev.row, x: currCell.col - prev.col};

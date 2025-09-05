@@ -1,5 +1,6 @@
 import { StaticImage } from "./pim-art/index.js";
 
+
 export class Table extends StaticImage {
 
     /**
@@ -22,13 +23,17 @@ export class Table extends StaticImage {
 
         this.isAvailable = true;
         this.chairs = chairs;
-        this.corners = [{ x: pos.x - scene.art.tileSize, y: pos.y - scene.art.tileSize * 2},
-                        { x: pos.x + scene.art.tileSize * 2, y: pos.y - scene.art.tileSize * 2 },
-                        { x: pos.x + scene.art.tileSize * 2, y: pos.y + scene.art.tileSize},
-                        { x: pos.x - scene.art.tileSize, y: pos.y + scene.art.tileSize }];                
+        this.corners = [{ x: pos.x - scene.art.tileSize , y: pos.y - this.scene.art.tileSize}, // nw
+                        { x: pos.x + scene.art.tileSize * 2, y: pos.y - this.scene.art.tileSize }, // ne
+                        { x: pos.x + scene.art.tileSize * 2, y: pos.y + this.halfHeight}, // se
+                        { x: pos.x - scene.art.tileSize, y: pos.y +this.halfHeight }];    // sw             
         this.cornerDirections = ["se", "sw", "nw", "ne"]; // Get dir based on corner index 
         this.chairDirections = ["s", "w", "n", "e"]; // Get dir based on chair index i.e. tableSide
         this.centerPos = {x: this.pos.x + this.halfWidth, y: this.pos.y + this.halfHeight};
+    }
+
+    getWaiterWelcomePos() {
+        return {x: this.corners[1].x + this.scene.art.tileSize, y: this.corners[1].y}
     }
 
      /**
@@ -38,7 +43,9 @@ export class Table extends StaticImage {
      * @param { 0 | 1 | 2 | 3 } tableSide
      * @returns {{x: number, y: number}} pos 
      */
-    getMenuItemPos(type, menuItem, tableSide) {
+    getMenuItemTablePos(type, menuItem, tableSide) {
+    // console.log(`getMenuItemTablePos: ${type} ${tableSide}`);
+        
         switch(type) {
             case "food":
             case "dessert":
@@ -48,23 +55,28 @@ export class Table extends StaticImage {
                     case 1:
                         return {x: this.pos.x + this.width - menuItem.width - 4, y: this.pos.y + (this.height / 2) - menuItem.height};
                     case 2:
-                        return {x:  this.pos.x + this.scene.art.tileSize - Math.floor(menuItem.width / 2), y: this.pos.y + this.scene.art.tileSize - 1};
+                        return {x:  this.pos.x + this.scene.art.tileSize - Math.floor(menuItem.width / 2), y: this.pos.y + this.scene.art.tileSize - 2};
                     case 3:
                         return {x: this.pos.x + 4,  y: this.pos.y + (this.height / 2) - menuItem.height - 1};
                 }
             case "drink":
                 switch(tableSide) {
                     case 0:
-                        return {x: this.pos.x + 10, y: this.pos.y + menuItem.height};
+                        return {x: this.pos.x + 9, y: this.pos.y + 2};
                     case 1:
-                        return {x: this.pos.x + 20, y: this.pos.y + 6};
+                        return {x: this.pos.x + 20, y: this.pos.y + 13};
                     case 2:
                         return {x: this.pos.x + 20, y: this.pos.y + 13};
                     case 3:
-                        return {x: this.pos.x + 10, y: this.pos.y + 12};
+                        return {x: this.pos.x + 8, y: this.pos.y + 12};
                 }
         }
         
+    }
+
+    getChairPos(tableSide) {
+        const chairPos = this.chairs[tableSide].pos;
+        return {...chairPos}
     }
 }
 

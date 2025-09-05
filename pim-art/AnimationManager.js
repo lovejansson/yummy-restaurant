@@ -4,24 +4,16 @@
 */
 
 /**
- * @typedef {(SpriteSheetAnimation | FramesArray) & {loop: boolean}} AnimationConfig
- */
-
-
-/**
- * @typedef FramesArray
- * @property {"frames"} type 
- * @property {{image: string, duration: number}[]} frames
+ * @typedef {SpriteSheetAnimation} AnimationConfig
  */
 
 /**
- * @typedef SpriteSheetAnimation
- * @property {"spritesheet"} type 
- * @property {string} frames 
-* @property {string} [overlayFrames] 
+ * @typedef AnimationConfig
+ * @property {string} frames spritesheet image key
 * @property {number} frameRate 
 * @property {number} numberOfFrames 
-* @property {number} [startIdx] 
+* @property {number} [startIdx]
+* @property {boolean} loop
  */
 
 
@@ -42,8 +34,8 @@ export default class AnimationManager {
         /** @type {Map<string, AnimationConfig>} */
         this.animations = new Map();
 
-        /** @type {{config: AnimationConfig, currentIndex: number, frameCount: number}|null} */
-        this.playingAnimation = null;  
+        /** @type {{config: AnimationConfig, frameCount: number,  updateCount: number, overlay: {frames: string, startIdx: number}}|null} */
+        this.playingAnimation = null;
 
     }
 
@@ -54,7 +46,7 @@ export default class AnimationManager {
      * @param {AnimationConfig} config
      */
     create(key, config) {
-        if(config.type === "spritesheet" && config.startIdx === undefined) config.startIdx = 0;
+        if (config.type === "spritesheet" && config.startIdx === undefined) config.startIdx = 0;
         this.animations.set(key, config);
     }
 
@@ -62,15 +54,16 @@ export default class AnimationManager {
      * Starts playing the animation.
      * 
      * @param {string} key
+     * @param {{frames: string, startIdx: number}} [overlay] 
      * @throws {AnimationNotAddedError}
      */
-    play(key) {
+    play(key, overlay) {
 
         const animation = this.animations.get(key);
 
         if (!animation) throw new AnimationNotAddedError(key);
 
-        this.playingAnimation = { key, config: animation, currentIndex: animation.type === "spritesheet" ? animation.startIdx : 0, frameCount: 0 };
+        this.playingAnimation = { key, config: animation, overlay, frameCount: 0, updateCount: 0 };
     }
 
     /**
@@ -96,55 +89,28 @@ export default class AnimationManager {
 
     update() {
         if (this.playingAnimation !== null) {
-            if(this.playingAnimation.config.type === "frames") {
+            // 1000 / 60 = 16.67 ms per frame 
+            // 100 / 16.67 = 5.99 update frames in art cycle per sprite frame 
+            if (this.playingAnimation.updateCount >= Math.floor(this.playingAnimation.config.frameRate / (1000 / this.sprite.scene.art.frameRate))) {
 
-                if(this.playingAnimation.frameCount >= Math.floor(this.playingAnimation.config.frames[this.playingAnimation.currentIndex].duration / (1000 / 60))) {
+                if (this.playingAnimation.config.numberOfFrames - 1 === this.playingAnimation.frameCount) {
 
-                    if (this.playingAnimation.config.frames.length - 1 === this.playingAnimation.currentIndex) {
-
-                        if (!this.playingAnimation.config.loop) {
-                            this.playingAnimation = null;
-                            return;
-                        } else {
-                            this.playingAnimation.currentIndex = 0;
-                        }
-
+                    if (!this.playingAnimation.config.loop) {
+                        this.playingAnimation = null;
+                        return;
                     } else {
-                        this.playingAnimation.currentIndex++;
+                        this.playingAnimation.frameCount = 0;
                     }
-
-                    this.playingAnimation.frameCount = 0;
+                } else {
+                    this.playingAnimation.frameCount += 1;
                 }
 
-                this.playingAnimation.frameCount++;
+                this.playingAnimation.updateCount = 0;
+       
+            }
 
-            } else if (this.playingAnimation.config.type === "spritesheet") {
-                // 1000 / 60 = 16.67 ms per frame 
-                // 100 / 16.67 = 5.99 update frames in art cycle per sprite frame 
-                 if (this.playingAnimation.frameCount >= Math.floor(this.playingAnimation.config.frameRate / (1000 / this.sprite.scene.art.frameRate))) {
-                
-                    if (this.playingAnimation.config.numberOfFrames - 1 === this.playingAnimation.currentIndex - this.playingAnimation.config.startIdx ) {
-        
-                        if (!this.playingAnimation.config.loop) {
+            this.playingAnimation.updateCount++;
             
-                            this.playingAnimation = null;
-                            return;
-                        } else {
-                            this.playingAnimation.currentIndex = this.playingAnimation.config.startIdx;
-                        }
-
-                    } else {
-                        this.playingAnimation.currentIndex++;
-                    }
-
-                    this.playingAnimation.frameCount = 0;
-                }
-
-                this.playingAnimation.frameCount++;
-
-            } else {
-                throw new Error("Unknown animation type: " + this.playingAnimation.config.animation.type);
-            } 
         }
     }
 
@@ -157,47 +123,30 @@ export default class AnimationManager {
 
         if (this.playingAnimation) {
 
-            if(this.playingAnimation.config.type === "frames") {
-                
-                const image = this.sprite.scene.art.images.get(this.playingAnimation.config.frames[this.playingAnimation.currentIndex].image);
-                
-                ctx.drawImage(image, 
-                    this.playingAnimation.currentIndex * (this.sprite.width), 
-                    0, 
-                    this.sprite.width, 
-                    this.sprite.height, 
-                    this.sprite.pos.x, 
-                    this.sprite.pos.y, 
-                    this.sprite.width, 
-                    this.sprite.height);
+            const image = this.sprite.scene.art.images.get(this.playingAnimation.config.frames);
 
-            } else if (this.playingAnimation.config.type === "spritesheet") {
+            ctx.drawImage(image,
+                 (this.playingAnimation.config.startIdx + this.playingAnimation.frameCount) * this.sprite.width,
+                0,
+                this.sprite.width,
+                this.sprite.height,
+                this.sprite.pos.x,
+                this.sprite.pos.y,
+                this.sprite.width,
+                this.sprite.height);
 
-                const image = this.sprite.scene.art.images.get(this.playingAnimation.config.frames);
+            if (this.playingAnimation.overlay !== undefined) {
+                const image = this.sprite.scene.art.images.get(this.playingAnimation.overlay.frames);
 
                 ctx.drawImage(image,
-                    this.playingAnimation.currentIndex * this.sprite.width,
+                    (this.playingAnimation.overlay.startIdx + this.playingAnimation.frameCount) * this.sprite.width,
                     0,
                     this.sprite.width,
                     this.sprite.height,
                     this.sprite.pos.x,
-                    this.sprite.pos.y, 
+                    this.sprite.pos.y,
                     this.sprite.width,
                     this.sprite.height);
-
-                if(this.playingAnimation.config.overlayFrames !== undefined) {
-                    const image = this.sprite.scene.art.images.get(this.playingAnimation.config.overlayFrames);
- 
-                    ctx.drawImage(image,
-                        this.playingAnimation.currentIndex * this.sprite.width,
-                        0,
-                        this.sprite.width,
-                        this.sprite.height,
-                        this.sprite.pos.x,
-                        this.sprite.pos.y, 
-                        this.sprite.width,
-                        this.sprite.height);
-                }
             }
         }
     }

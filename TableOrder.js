@@ -1,46 +1,18 @@
-import GuestGroup from "./GuestGroup.js";
-import { ArtObject } from "./pim-art/index.js";
 import { OrderedMenuItem } from "./menu.js";
 
-/**
- * @typedef GuestOrder
- * @property {Symbol} guestId
- * @property {OrderedMenuItem[]} items
- */
-export default class TableOrder extends ArtObject {
+
+export default class TableOrder  {
 
     /**
      * @param {"food" | "dessert" | "bill"} type
-     * @param {GuestGroup} guestGroup
      */
-    constructor(type, guestGroup) {
-        super(guestGroup.scene, Symbol("TableOrder"));
-        
+    constructor(type) {
         this.type = type;
-        this.guestGroup = guestGroup;
         this.isServed = false;
 
         /**
-         * @type {GuestOrder}
+         * @type {OrderedMenuItem[]}
          */
         this.guestOrders = [];
-    }
-
-    /**
-     * @param {CanvasRenderingContext2D} ctx 
-     */
-    draw(ctx) {
-        if(this.isServed) {
-   
-            for(const go of this.guestOrders) {
-              
-                for(const i of go.items) {
-                    if(!(go.guest.isDrinking() && i.menuItem.type === "drink")) {
-
-                        i.menuItemObj.draw(ctx);
-                    }
-                }
-            } 
-        }
     }
 }

@@ -106,15 +106,12 @@ function createPathBFS(start, end, grid) {
  * 
  */
 function createPathAStar(start, end, grid, walkableTileValues = [0]) {
-    //  console.log("Creating path from " + JSON.stringify(start) + " to " + JSON.stringify(end));
-    //  console.log(grid[start.row][start.col], grid[end.row][end.col]);
+    //  console.debug("Creating path from " + JSON.stringify(start) + " to " + JSON.stringify(end));
+      console.debug(grid[start.row][start.col], grid[end.row][end.col]);
 
-    // console.log(grid);
 
-    // console.log("WALKABLE TILE VALUES ", walkableTileValues)
-    
-    if(!walkableTileValues.includes(grid[start.row][start.col])) throw new Error("Start cell is a non walkable cell." + grid[start.row][start.col]);
-    if(!walkableTileValues.includes(grid[end.row][end.col])) throw new Error("End cell is a non walkable cell." + grid[end.row][end.col]);
+    if(grid[start.row][start.col] === 1) throw new Error(`Start cell is a non walkable cell: ${start.row}:${start.col}`);
+    if(grid[end.row][end.col] === 1) throw new Error(`End cell is a non walkable cell. ${end.row}:${end.col}`);
 
     const rows = grid.length;
     const cols = grid[0].length;
@@ -172,8 +169,8 @@ function createPathAStar(start, end, grid, walkableTileValues = [0]) {
 
         for(const n of neighbours) {
 
-            if(!walkableTileValues.includes(grid[n.row][n.col])) continue; // obsticle cell 
-
+           
+            if(grid[n.row][n.col] === 1) continue //
             const h = heuristic(n, end);
             const f = g + h;
 
@@ -195,6 +192,8 @@ function createPathAStar(start, end, grid, walkableTileValues = [0]) {
         openList.remove(curr);
         closeList.push(curr);
     }
+
+    if(pathMap[end.row][end.col] === null) throw Error("Invalid path")
     return reconstructPath(pathMap);
 }
 

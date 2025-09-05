@@ -128,7 +128,6 @@ export default class MusicPlayerElement extends HTMLElement {
 
 
     handlePlayerStateChange(event) {
-        if(DEBUG) // console.log(`Player state changed: ${PlayerStates.get(event.data) || event.data}`);
 
         if (event.data === YT.PlayerState.ENDED) {
             if(DEBUG) // console.log("Song ended");

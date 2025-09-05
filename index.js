@@ -18,10 +18,8 @@ const art = new Art({
 
 
 art.play();
-  
 
 const musicPlayerEl = document.querySelector("music-player");
-
 
 musicPlayerEl.addEventListener("play", () => {
     if(!art.isPlaying) {
