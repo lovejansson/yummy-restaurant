@@ -193,7 +193,12 @@ function createPathAStar(start, end, grid, walkableTileValues = [0]) {
         closeList.push(curr);
     }
 
-    if(pathMap[end.row][end.col] === null) throw Error("Invalid path")
+    if(pathMap[end.row][end.col] === null) {
+        // console.log(pathMap)
+        // console.log(grid)
+        // console.log(start)
+        // console.log(end)
+        throw Error("Invalid path")}
     return reconstructPath(pathMap);
 }
 

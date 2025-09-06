@@ -1,5 +1,5 @@
 /**
- * @typedef {"order-drink" | "order-food" | "order-dessert" | "clean-order" | "bill" | "arrive" | "order-ready"} EventType
+ * @typedef { "arrive" | "order-food" | "order-dessert" | "clean-order" | "bill" | "order-ready" | "bill-ready"} EventType
  */
 
 /**

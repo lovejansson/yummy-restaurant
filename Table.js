@@ -21,19 +21,45 @@ export class Table extends StaticImage {
     constructor(scene, pos, chairs) {
         super(scene, Symbol("table"), pos, 32, 32, "table");
 
+        this.centerPos = {x: this.pos.x + this.halfWidth, y: this.pos.y + this.halfHeight};
         this.isAvailable = true;
         this.chairs = chairs;
-        this.corners = [{ x: pos.x - scene.art.tileSize , y: pos.y - this.scene.art.tileSize}, // nw
-                        { x: pos.x + scene.art.tileSize * 2, y: pos.y - this.scene.art.tileSize }, // ne
-                        { x: pos.x + scene.art.tileSize * 2, y: pos.y + this.halfHeight}, // se
-                        { x: pos.x - scene.art.tileSize, y: pos.y +this.halfHeight }];    // sw             
-        this.cornerDirections = ["se", "sw", "nw", "ne"]; // Get dir based on corner index 
+        this.corners = [{ x: pos.x - scene.art.tileSize , y: pos.y - this.scene.art.tileSize},
+                        { x: pos.x + scene.art.tileSize * 2, y: pos.y - this.scene.art.tileSize },
+                        { x: pos.x + scene.art.tileSize * 2, y: pos.y + this.halfHeight}, 
+                        { x: pos.x - scene.art.tileSize, y: pos.y +this.halfHeight }];             
+
         this.chairDirections = ["s", "w", "n", "e"]; // Get dir based on chair index i.e. tableSide
-        this.centerPos = {x: this.pos.x + this.halfWidth, y: this.pos.y + this.halfHeight};
+      
     }
 
-    getWaiterWelcomePos() {
-        return {x: this.corners[1].x + this.scene.art.tileSize, y: this.corners[1].y}
+    getWaiterWelcomeCorner() {
+        return{direction: "sw", pos: {x: this.corners[1].x + this.scene.art.tileSize, y: this.corners[1].y}}
+    }
+
+    /**
+     * Get closest corner to current waiter position.
+     * @param {Waiter} waiter
+     * @returns {{direction: "se" | "sw" | "nw" | "ne", pos: {x: number,y: number}}}
+     */
+    getWaiterCorner(waiter) {
+
+        let minDist = 1000000;
+        let currDist = 0;
+        let cornerIdx = 1;
+
+        for(const [i, c] of Object.entries(this.corners)) {
+            
+            currDist = Math.sqrt(Math.pow(waiter.pos.x - c.x, 2), Math.pow(waiter.pos.y - c.y, 2));
+            minDist = Math.min(currDist, minDist);
+
+            if(currDist < minDist) {
+                minDist = currDist;
+                cornerIdx = i;
+            }
+        }
+       
+        return {direction: ["se", "sw", "nw", "ne"][cornerIdx], pos: {x: this.corners[cornerIdx].x, y: this.corners[cornerIdx].y}}
     }
 
      /**
@@ -44,8 +70,7 @@ export class Table extends StaticImage {
      * @returns {{x: number, y: number}} pos 
      */
     getMenuItemTablePos(type, menuItem, tableSide) {
-    // console.log(`getMenuItemTablePos: ${type} ${tableSide}`);
-        
+
         switch(type) {
             case "food":
             case "dessert":
@@ -76,7 +101,7 @@ export class Table extends StaticImage {
 
     getChairPos(tableSide) {
         const chairPos = this.chairs[tableSide].pos;
-        return {...chairPos}
+        return {...chairPos, y: tableSide === 2 ? chairPos.y - 1 : chairPos.y + 1}
     }
 }
 

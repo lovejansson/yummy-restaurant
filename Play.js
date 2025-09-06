@@ -48,7 +48,10 @@ export default class Play extends Scene {
     }
 
     getIdlePos() {
-        return this.waiterIdlePositions.filter(wip => wip.isAvailable).random().pos
+        const idlePos =  this.waiterIdlePositions.filter(wip => wip.isAvailable).random();
+        idlePos.isAvailable = false;
+
+        return idlePos;
     }
 
     removeGuestGroup(guestGroup) {
@@ -83,7 +86,7 @@ export default class Play extends Scene {
     
     createSymbol(image) {
         return new StaticImage(this, Symbol("symbol"), 
-                {x: 0, y: 0}, this.art.images.get(image).width, this.art.images.get(image).height, image);
+                {x: 0, y: 0},9, 7, image);
     }
 
     removeOrder(order) {
@@ -136,7 +139,7 @@ export default class Play extends Scene {
         this.art.images.add("exclamation", `${BASE_URL}images/symbols/exclamation.png`);
         this.art.images.add("question", `${BASE_URL}images/symbols/question.png`);
         this.art.images.add("heart", `${BASE_URL}images/symbols/heart.png`);
-
+        this.art.images.add("bill", `${BASE_URL}images/symbols/bill.png`);
         // Drinks
 
         this.art.images.add("milk", `${BASE_URL}images/menu/drink/milk.png`);
@@ -200,9 +203,12 @@ export default class Play extends Scene {
         this.#createGrid();
         this.#createIdlePositions();
         this.#createKitchenPositions();
- 
-        this.waiter = new Waiter(this, Symbol("waiter"), this.waiterIdlePositions.random().pos, 15, 32, "afro");
 
+        for(let i = 0; i < 3; ++i) {
+      
+            this.waiters.push(new Waiter(this, Symbol("waiter"), {x: 0, y: 0}, 15, 32, "afro"));
+        }
+    
         this.#initGuests(); 
 
         this.isInitialized = true;
@@ -223,7 +229,9 @@ export default class Play extends Scene {
         //     // console.log("space")
         // }
 
-        this.waiter.update();
+        for(const w of this.waiters) {
+            w.update()
+        }
         
         for(const gg of this.guestGroups) {
             gg.update();
@@ -261,20 +269,13 @@ export default class Play extends Scene {
 
         // Objects sorted by their y position 
         const objects = [
-            ...this.tables.map(t => t.chairs).flat(), 
-            ...this.tables, this.waiter, 
             ...this.guestGroups.map(gg => gg.guests).flat(),
+            ...this.tables.map(t => t.chairs).flat(), 
+            ...this.tables, ...this.waiters, 
+       
             ...this.guestGroups.filter(gg => gg.tableOrder !== null && gg.tableOrder.isServed)
             .flatMap(gg => gg.tableOrder.guestOrders.filter(o => !(o.guest.isDrinking() && o.menuItem.type === "drink")))
             ].sort((o1, o2) => {
-
-                
-                if(o1 instanceof Chair && o2 instanceof Guest && this.getChairFor(o2) === o1 && o1.tableSide === 2) {
-                    return 1;
-                } else if (o1 instanceof Guest && o2 instanceof Chair && this.getChairFor(o1) === o2 && o1.tableSide === 2) {
-                    return -1;
-                }
-
                 return o1.pos.y - o2.pos.y;
         });
 
@@ -286,6 +287,14 @@ export default class Play extends Scene {
 
         const guestGroupMessageBubbles = this.guestGroups.map(gg => gg.messageBubble);
         const guestMessageBubbles = this.guestGroups.map(gg => gg.guests).flat().map(g => g.messageBubble);
+
+        
+        for(const w of this.waiters) {
+           
+            if(w.messageBubble.isShowing) w.messageBubble.draw(ctx)
+            
+        }
+    
    
         for(const mb of guestGroupMessageBubbles) {
             if(mb.isShowing) {
@@ -299,9 +308,6 @@ export default class Play extends Scene {
             }
         }
 
-        if(this.waiter.messageBubble.isShowing) {
-            this.waiter.messageBubble.draw(ctx);
-        }  
 
     }
 
@@ -383,7 +389,7 @@ export default class Play extends Scene {
 
         
         // n, e, s, w
-        const chairPositionDiffs = [{x: tileSize / 2, y: -tileSize * 1.5
+        const chairPositionDiffs = [{x: tileSize / 2, y: -26
         }, 
             {x: 28, y: -5}, 
             {x: tileSize / 2, y: tileSize }, 
@@ -406,17 +412,12 @@ export default class Play extends Scene {
     }
 
     #initGuests() {
-                this.#createGuestGroup( {name: "receive-order", type: "bill"});    
-        this.#createGuestGroup( {name: "eat-drink", type: "food"});
-          this.#createGuestGroup( {name: "arrive"});
-        this.#createGuestGroup( {name: "eat-drink", type: "food"});
 
-        this.#createGuestGroup( {name: "eat-drink", type: "food"});
-      
- 
-              
-              
-     
+        this.#createGuestGroup( {name: "arrive"});    
+        this.#createGuestGroup( {name: "order", type: "food"});
+        this.#createGuestGroup( {name: "receive-order", type: "dessert"});
+        this.#createGuestGroup( {name: "eat-drink", type: "dessert"});
+        this.#createGuestGroup( {name: "ask-bill"});
     }
 
     #createGuestGroup(initialState) {
@@ -434,6 +435,5 @@ export default class Play extends Scene {
         this.guestGroups.push(guestGroup);
         guestGroup.init();
        
-    }
-
+    }3
 }

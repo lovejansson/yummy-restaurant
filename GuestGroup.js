@@ -1,16 +1,18 @@
-import Guest, { Arrive, Order, ReceiveOrder, EatAndDrink, EatDrinkDone, Leave, IdleSitting } from "./Guest.js";
+import Guest, { Arrive, Order, ReceiveOrder, EatAndDrink, EatDrinkDone, Leave, IdleSitting, AskForBill, GetBill } from "./Guest.js";
 import { MessageBubble } from "./message.js";
 import TableOrder from "./TableOrder.js";
 import { menu, OrderedMenuItem } from "./menu.js";
 
 export default class GuestGroup {
 
+    static LOGGER_TAG = "GuestGroup";
+
     /**
      * @param {import("./Play.js").default} scene
      * @param {Table} table
      * @param {{
-     * name: "arrive" | "eat-drink" | "order" | "receive-order" | "leave", 
-     * type?: "food" | "dessert" | "bill"}} initalState
+     * name: "arrive" | "eat-drink" | "order" | "receive-order" | "ask-bill" | "get-bill" | "leave" , 
+     * type?: "food" | "dessert"}} initalState
      */
     constructor(scene, initalState, table) {
         this.scene = scene;
@@ -45,19 +47,19 @@ export default class GuestGroup {
 
         // Create the guests
 
-        const numOfGuests = 4;
+        const numOfGuests = Math.ceil(Math.random() * 4);
 
         if (numOfGuests === 2) {
 
             // Either north and south side or east and west side of the table
             const tableSide = Math.random() > 0.5 ? [0, 2] : [1, 3];
-            
-            for(let i = 0; i < 2; ++i) {
+
+            for (let i = 0; i < 2; ++i) {
                 this.guests.push(new Guest(this.scene, this.#pickGuestVariant(), { x: 0, y: 0 }, tableSide[i]));
             }
 
         } else {
-  
+
             const startIdx = Math.min(4 - numOfGuests, Math.floor(Math.random() * 4));
 
             for (let i = startIdx; i < startIdx + numOfGuests; ++i) {
@@ -68,18 +70,16 @@ export default class GuestGroup {
 
         // Initialize the states 
         switch (this.state.name) {
-            
+
             case "arrive":
 
                 const FIRST_POS = { x: 0, y: this.scene.art.tileSize * 6 };
 
-               const xyDiffs = [  { x: this.scene.art.tileSize, y: this.scene.art.tileSize }, 
-                    
-                   
-                        { x: 0, y: this.scene.art.tileSize * 2 }, 
-                    { x: 0, y:this.scene.art.tileSize } ,  { x: 0, y: 0 },
+                const xyDiffs = [{ x: this.scene.art.tileSize, y: this.scene.art.tileSize },
+                { x: 0, y: this.scene.art.tileSize * 2 },
+                { x: 0, y: this.scene.art.tileSize }, { x: 0, y: 0 },
                 ]
-        
+
 
                 for (let i = 0; i < this.guests.length; ++i) {
                     const guest = this.guests[i];
@@ -109,61 +109,34 @@ export default class GuestGroup {
 
                 break;
             case "order":
-            {
-
-                if(this.state.type === "bill") {
-
-                    const guestWhoShouldTakeBill = this.guests.random();
-
+                {
                     for (const g of this.guests) {
                         g.pos = this.table.getChairPos(g.tableSide);
                         g.actionState = new IdleSitting();
-                        g.lifeCycleState = new Order(this.state.type, g === guestWhoShouldTakeBill);
+                        g.lifeCycleState = new Order(this.state.type);
                     }
 
-                } else {
-                    for (const g of this.guests) {
-                        g.pos = this.table.getChairPos(g.tableSide);
-                        g.actionState = new IdleSitting();
-                        g.lifeCycleState = new Order(this.state.type, null);
-                    }
+                    // Show ! in message bubble until waiter comes to serve them
+                    const msgBubblePos = {
+                        x: Math.round(this.table.centerPos.x - this.messageBubble.halfWidth),
+                        y: Math.round(this.table.centerPos.y - this.messageBubble.height * 2)
+                    };
+
+                    this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
+                        msgBubblePos, 10000);
+
+                    this.scene.art.services.events.add({ name: `${this.state.name}-${this.state.type}`, data: { guestGroup: this } });
+                    break;
                 }
-
-                // Show ! in message bubble until waiter comes to serve them
-                const msgBubblePos = {
-                    x: Math.round(this.table.centerPos.x - this.messageBubble.halfWidth),
-                    y: Math.round(this.table.centerPos.y - this.messageBubble.height * 2)
-                };
-
-                this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
-                    msgBubblePos, 10000);
-
-                this.scene.art.services.events.add({ name: `${this.state.name}-${this.state.type}`, data: { guestGroup: this } });
-
-                break;
-            }
 
             case "receive-order":
 
-                    this.tableOrder = this.#createRandomTableOrder(this.state.type);
+                this.tableOrder = this.#createRandomTableOrder(this.state.type);
 
-                if(this.state.type === "bill") {
-
-                    const guestWhoShouldTakeBill = this.guests.random();
-
-                    for (const g of this.guests) {
-                        g.pos = this.table.getChairPos(g.tableSide);
-                        g.actionState = new IdleSitting();
-                        g.lifeCycleState = new ReceiveOrder(this.state.type, g === guestWhoShouldTakeBill);
-                    }
-
-                } else {
-                              
-                    for (const g of this.guests) {
-                        g.pos = this.table.getChairPos(g.tableSide);
-                        g.actionState = new IdleSitting();
-                        g.lifeCycleState = new ReceiveOrder(this.state.type, null);
-                    }
+                for (const g of this.guests) {
+                    g.pos = this.table.getChairPos(g.tableSide);
+                    g.actionState = new IdleSitting();
+                    g.lifeCycleState = new ReceiveOrder();
                 }
 
                 // After 5 min the order is ready to pick up 
@@ -172,15 +145,66 @@ export default class GuestGroup {
                 }, 1000 * 5);
 
                 break;
+            case "ask-bill":
+                {
+                    const guestWhoShouldPay = this.guests.random();
+
+                    for (const g of this.guests) {
+                        g.pos = this.table.getChairPos(g.tableSide);
+                        g.actionState = new IdleSitting();
+                        g.lifeCycleState = new AskForBill(g === guestWhoShouldPay);
+                    }
+
+                    this.scene.art.services.events.add({ name: "bill", data: { guestGroup: this } });
+
+                    this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
+                        {
+                            x: Math.round(this.table.centerPos.x - this.messageBubble.halfWidth),
+                            y: Math.round(this.table.centerPos.y - this.messageBubble.height * 2)
+                        },
+                        5000)
+
+                    break;
+                }
+            case "get-bill":
+                {
+                    const guestWhoShouldPay = this.guests.random();
+
+                    for (const g of this.guests) {
+                        g.pos = this.table.getChairPos(g.tableSide);
+                        g.actionState = new IdleSitting();
+                        g.lifeCycleState = new GetBill(g === guestWhoShouldPay);
+                    }
+
+                    setTimeout(() => {
+                        this.scene.art.services.events.add({ name: "bill-ready", data: { guestGroup: this } });
+                    }, 1000 * 5);
+
+                    break;
+                }
+            case "leave":
+                {
+                    for (let i = 0; i < this.guests.length; ++i) {
+                        this.guests[i].pos = this.table.getChairPos(this.guests[i].tableSide);
+                        this.guests[i].actionState = new IdleSitting();
+                        this.guests[i].lifeCycleState = new Leave();
+                    }
+
+                    break;
+                }
         }
     }
 
     update() {
         if (this.lifeCycleStateIsDone()) {
+            if(this.state.name === "eat-drink") {
+                console.debug(GuestGroup.LOGGER_TAG, "states")
+                console.dir(this.tableOrder)
+            }
+            console.debug(GuestGroup.LOGGER_TAG, this.state);
             switch (this.state.name) {
                 case "arrive":
                     {
-                        this.state = { name: "order", type: "food" };
 
                         for (const g of this.guests) {
                             g.lifeCycleState = new Order("food");
@@ -194,15 +218,13 @@ export default class GuestGroup {
                             this.scene.art.services.events.add({ name: "order-food", data: { guestGroup: this } });
 
                         }, 10000);
-
+                        this.state = { name: "order", type: "food" };
                         break;
                     }
                 case "order": {
 
-                    const guestWhoShouldTakeBill = this.guests.random();
-
                     for (const g of this.guests) {
-                        g.lifeCycleState = new ReceiveOrder(this.state.type, this.state.type === "bill" && guestWhoShouldTakeBill === g);
+                        g.lifeCycleState = new ReceiveOrder();
                     }
 
                     this.state = { name: "receive-order", type: this.state.type };
@@ -210,34 +232,21 @@ export default class GuestGroup {
                     break;
                 }
                 case "receive-order":
-                    switch (this.state.type) {
-                        case "food":
-                        case "dessert":
 
-                            if (this.tableOrder === null) throw new Error("tableOrder is null so it gets hard to eat and drink");
+                    if (this.tableOrder === null) throw new Error("tableOrder is null so it gets hard to eat and drink");
 
-                            for (const g of this.guests) {
-                                this.#startEatAndDrink(g);
-                            }
-
-                            this.state = { name: "eat-drink", type: this.state.type };
-                            this.#showMessageBubble("heart");
-
-                            break;
-                        case "bill":
-                            // console.log("GUESTS SHOULD LEAVE NOW")
-                            console.debug("Guest group should leave")
-                            for (const g of this.guests) {
-                                g.lifeCycleState = new Leave()
-                                g.pos = this.table.corners[this.guests.indexOf(g)]
-                            }
-                            this.state = { name: "leave" };
-                            break;
+                    for (const g of this.guests) {
+                        this.#startEatAndDrink(g);
                     }
+
+                    this.state = { name: "eat-drink", type: this.state.type };
+                    this.#showMessageBubble("heart");
 
                     break;
 
                 case "eat-drink":
+
+                    console.debug(GuestGroup.LOGGER_TAG, "eat-drink done")
 
                     for (const g of this.guests) {
                         g.lifeCycleState = new EatDrinkDone();
@@ -252,22 +261,31 @@ export default class GuestGroup {
                             y: Math.round(this.table.centerPos.y - this.messageBubble.height * 2)
                         },
                         5000)
-                    // console.log("Order " + this.state.type)
+
                     this.scene.art.services.events.add({ name: "order-done", data: { guestGroup: this } });
 
                     break;
 
                 case "eat-drink-done":
 
-                    const nextOrderType = this.state.type === "food" ? "dessert" : "bill";
+                    if (this.state.type === "dessert") {
+                        const guestWhoShouldPay = this.guests.random();
 
-                    const guestWhoShouldTakeBill = this.guests.random();
+                        for (const g of this.guests) {
+                            g.lifeCycleState = new AskForBill(g === guestWhoShouldPay);
+                        }
 
-                    for (const g of this.guests) {
-                        g.lifeCycleState = new Order(nextOrderType, nextOrderType === "bill" && g === guestWhoShouldTakeBill);
+                        this.state = { name: "ask-bill" };
+                        this.scene.art.services.events.add({ name: "bill", data: { guestGroup: this } });
+
+                    } else {
+                        for (const g of this.guests) {
+                            g.lifeCycleState = new Order("dessert");
+                        }
+
+                        this.state = { name: "order", type: "dessert" };
+                        this.scene.art.services.events.add({ name: "order-dessert", data: { guestGroup: this } });
                     }
-
-                    this.state = { name: "order", type: nextOrderType };
 
                     this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
                         {
@@ -275,11 +293,32 @@ export default class GuestGroup {
                             y: Math.round(this.table.centerPos.y - this.messageBubble.height * 2)
                         },
                         5000)
-                    this.scene.art.services.events.add({ name: `order-${nextOrderType}`, data: { guestGroup: this } });
+
+                    break;
+
+                case "ask-bill":
+                    const guestWhoShouldPay = this.guests.random();
+
+                    for (const g of this.guests) {
+                        g.lifeCycleState = new GetBill(g === guestWhoShouldPay);
+                    }
+                    this.state = { name: "get-bill" };
+                    break;
+
+                case "get-bill":
+
+                    console.debug(GuestGroup.LOGGER_TAG, "Guest group should leave");
+
+                    for (let i = 0; i < this.guests.length; ++i) {
+                        this.guests[i].lifeCycleState = new Leave();
+                    }
+
+                    this.state = { name: "leave" };
+                    this.#showMessageBubble("heart");
                     break;
 
                 case "leave":
-                    this.scene.guestGroupLeft(this);
+                    this.scene.removeGuestGroup(this);
                     break;
             }
 
@@ -291,34 +330,33 @@ export default class GuestGroup {
         let guestVariant = ""
 
         do {
-           guestVariant = Guest.VARIANTS.random();
+            guestVariant = Guest.VARIANTS.random();
         }
 
-        while(this.guests.find(g => g.variant === guestVariant));
+        while (this.guests.find(g => g.variant === guestVariant));
 
         return guestVariant;
     }
 
     #createRandomTableOrder(type) {
-        
+
         const tableOrder = new TableOrder(type);
 
-        if(type === "bill") return tableOrder;
-
         // Add menu items
-        for(const g of this.guests) {
+        for (const g of this.guests) {
 
             const drink = menu.drink.random();
             const eat = menu[type].random();
 
+ 
             tableOrder.guestOrders.push(
-                    new OrderedMenuItem(g, drink, this.table.getMenuItemTablePos("drink", drink, g.tableSide)), 
-                    new OrderedMenuItem(g, eat, this.table.getMenuItemTablePos(this.state.type, eat, g.tableSide)),
+                new OrderedMenuItem(g, drink, this.table.getMenuItemTablePos("drink", drink, g.tableSide)),
+                new OrderedMenuItem(g, eat, this.table.getMenuItemTablePos(this.state.type, eat, g.tableSide)),
             );
         }
 
         return tableOrder;
-    
+
     }
 
     /**
@@ -330,7 +368,7 @@ export default class GuestGroup {
 
         if (drinkItem === undefined) throw new Error("Drink item not found");
 
-        const eatItem = this.tableOrder.guestOrders.find(i => i.menuItem.type === "dessert" || i.menuItem.type === "food" && i.guest === guest);
+        const eatItem = this.tableOrder.guestOrders.find(i => (i.menuItem.type === "dessert" || i.menuItem.type === "food") && i.guest === guest);
 
         if (eatItem === undefined) throw new Error("Drink item not found");
 

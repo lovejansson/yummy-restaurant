@@ -1,0 +1,22 @@
+Tests
+
+1. Test single guest group for the different states to make sure the state works 
+
+init Arrive for each table placement // Works but the guests walk into eachother and rendering is abit of for the guests and chair, mostly due to sprites not beeing perfect
+
+init Order (For food, dessert)
+
+init ReceiverOrder (For food, dessert)
+
+init EatAndDrink (For food and dessert)
+
+init AskForBill 
+
+init GetBill 
+
+init Leave for each table placement
+
+init Arrive and let the guests go through the whole state flow from Arrive to Leave
+
+2. Initiate 5 guest groups and check the state flows, let it run for 30 min and make sure it doesn't throw errors or create any noticable bugs
+

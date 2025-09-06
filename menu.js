@@ -34,16 +34,21 @@ export class OrderedMenuItem extends ArtObject {
         this.guest = guest;
         this.pos = pos;
 
-        this.bitesLeft = menuItem.type === "drink" ? null : menuItem.type === "dessert" ? 12 : 21;
-        this.sipsLeft = menuItem.type === "drink" ? 2 : null;
+
         this.bitesTot = menuItem.type === "drink" ? null : menuItem.type === "dessert" ? 12 : 21;
-        this.sipsTot = menuItem.type === "drink" ? 2 : null; 
+        this.bitesLeft = menuItem.type === "drink" ? null : menuItem.type === "dessert" ? 12 : 21;
+        this.sipsTot = menuItem.type === "drink" ? 2 : null;
+        this.sipsLeft = menuItem.type === "drink" ? 2 : null;
 
         const canvas = document.createElement("canvas");
 
         canvas.width = this.menuItem.width;
         canvas.height = this.menuItem.height;
-        this.ctx = canvas.getContext("2d");
+        /**
+         * @type {CanvasRenderingContext2D}
+         */
+        this.ctx = canvas.getContext("2d", {willReadFrequently: true});
+
         this.ctx.drawImage(this.guest.scene.art.images.get(this.menuItem.image), 0, 0);
 
     }
@@ -113,7 +118,7 @@ function takeBite(ctx) {
      
       const plateColor = {r: 117, g: 151, b: 163,a: 255};
       const plateLightColor = {r: 181, g: 215, b: 255,a: 255};
-      const pixelData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
+      const pixelData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
       
       const foodRIndexes = [];
       let {r, g, b, a} = {r: 0, g: 0, b: 0, a: 0};

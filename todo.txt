@@ -2,27 +2,11 @@ TODO
 
 ***** Placera ut justin och hans gitarrist på scenen
 
-***** Lägg till flera stycken varianter av guests
+***** Lägg till flera stycken varianter av guests totalt 
 
 ***** Lägg till flera stycken varianter av waiters
 
-BUGS
 
-- bug fix 1 company 
+Bugs to fix 
 
-* Det finns nån bugg i kommunikation mellan water och guest company då ett par av gästerna inte får meddelanden och blir ståendes
-* Gästerna går på waitern när de anländer 
-* messabe bubble arrive ska släckas när waiter komemr
-
-- insert multiple companies och bug fixa (lär bli strul med path finding)
-
-
-Ok... så det krockar... 
-
-man kan blocka goal cell.. och current cell varav en sprite som går påväg mot en blockerad cell måste vänta
-
-Guests arrive --> end och start måste vara oblockerat 
-
-Guests leave -->  --> end och start måste vara oblockerat 
-
-uppdatera vurrent cell as they go 
+--- Går in i varandra

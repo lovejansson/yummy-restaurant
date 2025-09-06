@@ -14,5 +14,6 @@ export default class TableOrder  {
          * @type {OrderedMenuItem[]}
          */
         this.guestOrders = [];
+
     }
 }

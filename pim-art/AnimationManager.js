@@ -63,7 +63,7 @@ export default class AnimationManager {
 
         if (!animation) throw new AnimationNotAddedError(key);
 
-        this.playingAnimation = { key, config: animation, overlay, frameCount: 0, updateCount: 0 };
+        this.playingAnimation = { key, config: animation, overlay, frameCount: 0, updateCount: 0, loopCount: 0 };
     }
 
     /**
@@ -75,6 +75,10 @@ export default class AnimationManager {
         if (this.playingAnimation !== null && key === this.playingAnimation.key) {
             this.playingAnimation = null;
         }
+    }
+
+    loopCount() {
+        return this.playingAnimation !== null ? this.playingAnimation.loopCount : 0;
     }
 
     /**
@@ -100,6 +104,7 @@ export default class AnimationManager {
                         return;
                     } else {
                         this.playingAnimation.frameCount = 0;
+                        this.playingAnimation.loopCount++;
                     }
                 } else {
                     this.playingAnimation.frameCount += 1;

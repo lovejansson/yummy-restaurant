@@ -40,14 +40,24 @@ class LifeCycleState {
 
 class Wait extends LifeCycleState {
 
-    static LOGGER_TAG = "Waiter Wait";
+    static LOGGER_TAG = "Wait";
+
+    /**
+     * 
+     * @param {{pos: {x: number, y: number}, isAvailable: boolean}} idlePos 
+     */
+    constructor(idlePos) {
+        super();
+        console.debug(Wait.LOGGER_TAG, "constructor", idlePos);
+        this.idlePos = idlePos;
+    }
 
     /**
      * @param {Waiter} waiter 
      */
     init(waiter) {
         console.debug(Wait.LOGGER_TAG, "init");
-
+        waiter.pos = this.idlePos.pos;
         waiter.direction = "s";
         waiter.actionState = new Idle();
     }
@@ -60,6 +70,7 @@ class Wait extends LifeCycleState {
         const event = waiter.scene.art.config.services.events.next();
 
         if (event !== undefined) {
+            console.debug(Wait.LOGGER_TAG, "received event", event);
 
             switch (event.name) {
                 case "order-food":
@@ -69,20 +80,24 @@ class Wait extends LifeCycleState {
                     waiter.lifeCycleState = new TakeOrder("dessert", event.data.guestGroup);
                     break;
                 case "order-done":
-                    {
-                        waiter.lifeCycleState = new CleanOrder(event.data.guestGroup);
-                        break;
-                    }
-                case "order-bill":
-                    waiter.lifeCycleState = new TakeOrder("bill", event.data.guestGroup);
+                    waiter.lifeCycleState = new CleanOrder(event.data.guestGroup);
+                    break;
+                case "bill":
+                    waiter.lifeCycleState = new BillRequest(event.data.guestGroup);
                     break;
                 case "arrive":
                     waiter.lifeCycleState = new Welcome(event.data.guestGroup);
+                    break;
+                case "bill-ready":
+                    waiter.lifeCycleState = new GiveBill(event.data.guestGroup);
                     break;
                 case "order-ready":
                     waiter.lifeCycleState = new ServeOrder(event.data.guestGroup);
                     break;
             }
+
+            this.idlePos.isAvailable = true;
+
         }
     }
 }
@@ -92,7 +107,7 @@ class Wait extends LifeCycleState {
  */
 class Welcome extends LifeCycleState {
 
-    static LOGGER_TAG = "Waiter Welcome";
+    static LOGGER_TAG = "Welcome";
 
     /**
      * @param {GuestGroup} guestGroup
@@ -137,8 +152,8 @@ class Welcome extends LifeCycleState {
 
                 } else if (!waiter.messageBubble.isShowing) {
 
-                    const pos = this.guestGroup.table.getWaiterWelcomePos();
-                    waiter.actionState = new Walking(pos);
+                    this.corner = this.guestGroup.table.getWaiterWelcomeCorner();
+                    waiter.actionState = new Walking(this.corner.pos);
 
                     this.currGoal = "table";
                 }
@@ -157,7 +172,7 @@ class Welcome extends LifeCycleState {
 
                     if (waiter.actionState.path.hasReachedGoal) {
                         waiter.actionState = new Idle();
-                        waiter.direction = this.guestGroup.table.cornerDirections[this.tableCornerIdx];
+                        waiter.direction = this.corner.direction;
                     }
 
                 } else if (waiter.isIdle()) {
@@ -173,12 +188,12 @@ class Welcome extends LifeCycleState {
             case "idle-spot":
                 if (waiter.isWalking()) {
                     if (waiter.actionState.path.hasReachedGoal) {
-                        waiter.lifeCycleState = new Wait();
+                        waiter.lifeCycleState = new Wait(this.idlePos);
                     }
 
                 } else if (!waiter.messageBubble.isShowing) {
-                    // console.log("IDLE SPOT START WALKING BACK")
-                    waiter.actionState = new Walking(waiter.scene.getIdlePos());
+                    this.idlePos = waiter.scene.getIdlePos();
+                    waiter.actionState = new Walking(this.idlePos.pos);
                 }
 
                 break;
@@ -187,11 +202,130 @@ class Welcome extends LifeCycleState {
 }
 
 
+class BillRequest extends LifeCycleState {
+
+    static LOGGER_TAG = "BillRequest";
+
+    /**
+    * @param {GuestGroup} guestGroup
+    */
+    constructor(guestGroup) {
+        
+        super();
+
+        this.guestGroup = guestGroup;
+        this.hasAskedForBill = false;
+        console.debug(BillRequest.LOGGER_TAG, "constructor");
+    }
+
+    /**
+     * @param {Waiter} waiter 
+     */
+    init(waiter) {
+        console.debug(BillRequest.LOGGER_TAG, "init");
+        this.corner = this.guestGroup.table.getWaiterCorner(waiter);
+        waiter.actionState = new Walking(this.corner.pos);
+    }
+
+    /**
+      * @param {Waiter} waiter 
+      */
+    update(waiter) {
+        if(!this.hasAskedForBill) {
+            if (waiter.isWalking()) {
+                if (waiter.actionState.path.hasReachedGoal) {
+                    waiter.actionState = new Idle();
+                    waiter.direction = this.corner.direction;
+                    waiter.messageBubble.showMessage(waiter.scene.createSymbol("question"), { x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height }, 10000);
+                    this.guestGroup.waiterIsHere();
+                    waiter.scene.art.services.messages.send("bill", waiter, this.guestGroup.guests.find(g => g.lifeCycleState.shouldPay));
+                }
+
+            }  else {
+
+                const message = waiter.scene.art.services.messages.receive(waiter);
+
+                if (message !== undefined) {
+
+                    setTimeout(() => {
+                        waiter.scene.art.services.events.add({ name: "bill-ready", data: { guestGroup: this.guestGroup } });
+                    }, 1000 * 5);
+
+                    this.idlePos = waiter.scene.getIdlePos();
+                    waiter.actionState = new Walking(this.idlePos.pos);
+                    waiter.messageBubble.isShowing = false;
+                    this.hasAskedForBill = true;
+                }
+            }
+
+        } else {
+            if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
+                waiter.lifeCycleState = new Wait(this.idlePos);
+            }
+        }
+     }
+}
+
+class GiveBill extends LifeCycleState {
+
+    static LOGGER_TAG = "GiveBill"
+    
+    /**
+     * @param {GuestGroup} guestGroup
+     */
+    constructor(guestGroup) {
+        super();
+        this.guestGroup = guestGroup;
+        this.hasGivenBill = false;
+        console.debug(GiveBill.LOGGER_TAG, "constructor");
+    }
+
+    /**
+     * @param {Waiter} waiter 
+     */
+    init(waiter) {
+        console.debug(GiveBill.LOGGER_TAG, "init");
+        this.corner = this.guestGroup.table.getWaiterCorner(waiter);
+        waiter.actionState = new Walking(this.corner.pos)
+    }
+
+    /**
+      * @param {Waiter} waiter 
+      */
+    update(waiter) {
+        if(this.hasGivenBill) {
+             if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
+                    console.debug(GiveBill.LOGGER_TAG, "done");
+                    waiter.lifeCycleState = new Wait(this.idlePos);
+            }
+        } else {
+            if (waiter.isWalking()) {
+                if (waiter.actionState.path.hasReachedGoal) {
+                    waiter.actionState = new Idle();
+                    waiter.messageBubble.showMessage(waiter.scene.createSymbol("smiley"), { x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height });
+                    waiter.direction = this.corner.direction;
+                }
+
+            } else if (!waiter.messageBubble.isShowing) {
+                console.debug(GiveBill.LOGGER_TAG, "idle");
+                waiter.scene.art.services.messages.send("bill", waiter, this.guestGroup.guests.find(g => g.lifeCycleState.shouldPay));
+                this.currGoal = "idle";
+                this.idlePos = waiter.scene.getIdlePos();
+                waiter.actionState = new Walking(this.idlePos.pos);
+                this.hasGivenBill = true;
+            }
+
+        
+        }
+    }
+}
+
+
 class TakeOrder extends LifeCycleState {
 
-    static LOGGER_TAG = "Waiter TakeOrder";
+    static LOGGER_TAG = "TakeOrder";
     /**
-    * @param {"food" | "dessert" | "drink" | "bill"} type
+    * @param {"food" | "dessert"} type
     * @param {GuestGroup} guestGroup
     */
     constructor(type, guestGroup) {
@@ -208,9 +342,8 @@ class TakeOrder extends LifeCycleState {
      */
     init(waiter) {
       console.debug(TakeOrder.LOGGER_TAG, "init");
-        this.cornerIdx = Math.floor(Math.random() * this.guestGroup.table.corners.length);
-        waiter.actionState = new Walking(this.guestGroup.table.corners[this.cornerIdx]);
-
+        this.corner = this.guestGroup.table.getWaiterCorner(waiter);
+        waiter.actionState = new Walking(this.corner.pos);
     }
 
     /**
@@ -220,9 +353,8 @@ class TakeOrder extends LifeCycleState {
 
         if (this.hasTakenOrder) {
             if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                waiter.lifeCycleState = new Wait();
+                waiter.lifeCycleState = new Wait(this.idlePos);
             }
-
         } else {
 
             if (waiter.isWalking()) {
@@ -231,18 +363,10 @@ class TakeOrder extends LifeCycleState {
                     waiter.messageBubble.showMessage(waiter.scene.createSymbol("question"), { x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height }, 10000);
                     this.guestGroup.waiterIsHere();
 
-                    waiter.direction = this.guestGroup.table.cornerDirections[this.cornerIdx];
+                    waiter.direction = this.corner.direction;
 
-                    // Send first ask to guest 
-
-                    if (this.type === "bill") {
-                        waiter.scene.art.services.messages.send("order plz", waiter, this.guestGroup.guests.find(g => g.lifeCycleState.shouldTakeBill));
-                    } else {
-                        waiter.scene.art.services.messages.send("order plz", waiter, this.guestGroup.guests[this.orderCount]);
-                    }
-
+                    waiter.scene.art.services.messages.send("order plz", waiter, this.guestGroup.guests[this.orderCount]);
                 }
-
             }
             else {
 
@@ -252,8 +376,7 @@ class TakeOrder extends LifeCycleState {
 
                     this.tableOrder.guestOrders.push(...message.content.items);
                      
-                    
-                    if (this.type === "bill" || this.tableOrder.guestOrders.length === this.guestGroup.guests.length * 2) {
+                    if (this.tableOrder.guestOrders.length === this.guestGroup.guests.length * 2) {
 
                         this.hasTakenOrder = true;
 
@@ -264,14 +387,14 @@ class TakeOrder extends LifeCycleState {
                             waiter.scene.art.services.events.add({ name: "order-ready", data: { guestGroup: this.guestGroup } });
                         }, 1000 * 5);
 
-                        waiter.actionState = new Walking(waiter.scene.getIdlePos());
+                        this.idlePos = waiter.scene.getIdlePos();
+                        waiter.actionState = new Walking(this.idlePos.pos);
                         waiter.messageBubble.isShowing = false;
 
                     } else {
                         this.orderCount++;
                         // Send ask to next guest
                         waiter.scene.art.services.messages.send("order plz", waiter, this.guestGroup.guests[this.orderCount]);
-
                     }
                 }
             }
@@ -281,6 +404,7 @@ class TakeOrder extends LifeCycleState {
 
 
 class ServeOrder {
+    static LOGGER_TAG = "Waiter ServerOrder"
     /**
      * @param {GuestGroup} guestGroup
      */
@@ -290,14 +414,27 @@ class ServeOrder {
          * @type {"kitchen" | "serve" | "idle"}
          */
         this.currGoal = guestGroup.tableOrder.type !== "bill" ? "kitchen" : "serve";
-        this.cornerIdx = Math.floor(Math.random() * this.guestGroup.table.corners.length);
+        console.debug(ServeOrder.LOGGER_TAG, "constructor", guestGroup, this.currGoal);
     }
 
     /**
      * @param {Waiter} waiter 
      */
     init(waiter) {
-     
+        console.debug(ServeOrder.LOGGER_TAG, "init");
+
+        this.corner = this.guestGroup.table.getWaiterCorner(waiter);
+
+        // Start walking to kitchen (to get order) or to the table (to directly serve the bill)
+        if(this.currGoal === "kitchen") {
+            console.debug(ServeOrder.LOGGER_TAG, "to kitchen");
+            waiter.actionState = new Walking(waiter.scene.getKitchenPos());
+        } else if (this.currGoal === "serve") {
+            console.debug(ServeOrder.LOGGER_TAG, "serve");
+            waiter.actionState = new Walking(this.corner.pos, true)
+        } else {
+            // Should never happen.
+        }
     }
 
     /**
@@ -307,38 +444,43 @@ class ServeOrder {
         switch (this.currGoal) {
             case "kitchen":
                 if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
+                    console.debug(ServeOrder.LOGGER_TAG, "serve");
                     this.currGoal = "serve";
-                    waiter.actionState = new Walking(this.guestGroup.table.corners[this.cornerIdx], true)
-                } else {
-                    waiter.actionState = new Walking(waiter.scene.getKitchenPos());
-                }
+                    waiter.actionState = new Walking(this.corner.pos, true);
+                } 
 
                 break;
             case "serve":
+
                 if (waiter.isWalking()) {
                     if (waiter.actionState.path.hasReachedGoal) {
                         waiter.actionState = new Idle();
                         waiter.messageBubble.showMessage(waiter.scene.createSymbol("smiley"), { x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height });
-                        waiter.direction = this.guestGroup.table.cornerDirections[this.cornerIdx];
+                        waiter.direction = this.corner.direction;
                     }
 
                 } else if (!waiter.messageBubble.isShowing) {
-           
+
+                    if(this.guestGroup.tableOrder.type === "bill") {
+               
+                    } else {
                         for (const o of this.guestGroup.tableOrder.guestOrders) {
-                        waiter.scene.art.services.messages.send({ order: this.order }, waiter, o.guest);
+                          waiter.scene.art.services.messages.send(this.guestGroup.tableOrder.type, waiter, o.guest);
                         }
-                    
-                  
+                    }
+           
+
+                    console.debug(ServeOrder.LOGGER_TAG, "idle");
                     this.currGoal = "idle";
-                    waiter.actionState = new Walking(waiter.scene.getIdlePos());
-                } else {
-                          waiter.actionState = new Walking(this.guestGroup.table.corners[this.cornerIdx], true)
+                    this.idlePos = waiter.scene.getIdlePos();
+                    waiter.actionState = new Walking(this.idlePos.pos);
                 }
 
                 break;
             case "idle":
                 if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                    waiter.lifeCycleState = new Wait();
+                    console.debug(ServeOrder.LOGGER_TAG, "done");
+                    waiter.lifeCycleState = new Wait(this.idlePos);
                 }
                 break;
         }
@@ -346,7 +488,7 @@ class ServeOrder {
 }
 
 class CleanOrder extends LifeCycleState {
-    static LOGGER_TAG = "Waiter CleanOrder";
+    static LOGGER_TAG = "CleanOrder";
 
     /**
      * @param {GuestGroup} guestGroup
@@ -362,8 +504,8 @@ class CleanOrder extends LifeCycleState {
      */
     init(waiter) {
         console.debug(CleanOrder.LOGGER_TAG, "init");
-        this.cornerIdx = Math.floor(Math.random() * this.guestGroup.table.corners.length);
-        waiter.actionState = new Walking(this.guestGroup.table.corners[this.cornerIdx]);
+        this.corner = this.guestGroup.table.getWaiterCorner(waiter);
+        waiter.actionState = new Walking(this.corner.pos);
     }
 
     /**
@@ -373,7 +515,7 @@ class CleanOrder extends LifeCycleState {
         if (this.hasCleanedOrder) {
 
             if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                waiter.lifeCycleState = new Wait();
+                waiter.lifeCycleState = new Wait(waiter.scene.getIdlePos());
             }
 
         } else {
@@ -382,7 +524,8 @@ class CleanOrder extends LifeCycleState {
                 if (waiter.actionState.path.hasReachedGoal) {
                     waiter.actionState = new Idle();
                     waiter.messageBubble.showMessage(waiter.scene.createSymbol("smiley"), { x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height });
-                    waiter.direction = this.guestGroup.table.cornerDirections[this.cornerIdx];
+                    waiter.direction =            this.corner.direction;
+         
                 }
 
             } else if (!waiter.messageBubble.isShowing) {
@@ -393,7 +536,9 @@ class CleanOrder extends LifeCycleState {
 
                 this.guestGroup.tableOrder = null;
 
-                waiter.actionState = new Walking(waiter.scene.getIdlePos());
+               
+            this.idlePos = waiter.scene.getIdlePos();
+            waiter.actionState = new Walking(this.idlePos.pos);
             }
         }
     }
@@ -402,7 +547,7 @@ class CleanOrder extends LifeCycleState {
 
 
 class Walking extends ActionState {
-
+    static LOGGER_TAG = "Walking";
     /**
      * @type {{x: number, y: number}}
      */
@@ -430,7 +575,7 @@ class Walking extends ActionState {
         }
 
         if (this.path === null) {
-            this.path = new WalkPath(waiter, this.goalPos, Waiter.WALKABLE_TILES);
+            this.path = new WalkPath(waiter, this.goalPos);
         }
 
         this.path.update(waiter);
@@ -440,6 +585,9 @@ class Walking extends ActionState {
 
 
 class Idle extends ActionState {
+
+    static LOGGER_TAG = "Idle";
+
     /**
      * @param {Waiter} waiter 
      */
@@ -454,7 +602,7 @@ class Idle extends ActionState {
 
 export default class Waiter extends Sprite {
 
-    static WALKABLE_TILES = [0, 4];
+    static LOGGER_TAG = "Waiter"
 
     /**
      * @type {MessageBubble}
@@ -482,10 +630,13 @@ export default class Waiter extends Sprite {
     */
     constructor(scene, id, pos, width, height, who) {
         super(scene, id, pos, width, height);
-        this.messageBubble = new MessageBubble(scene);
-        this.#lifeCycleState = new Wait();
-        this.#lifeCycleState.init(this);
+
+        this.messageBubble = new MessageBubble(this.scene);
+        this.lifeCycleState = new Wait(this.scene.getIdlePos());
+
         this.gridPos = { row: Math.floor(this.pos.y / this.scene.art.tileSize), col: Math.floor(this.pos.x / this.scene.art.tileSize)};
+        this.gridCellValue = this.scene.grid[this.gridPos.row][this.gridPos.col];
+        this.scene.grid[this.gridPos.row][this.gridPos.col] = this.id; 
 
         this.animations.create("walk-s", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 0, loop: true });
         this.animations.create("walk-se", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 4, loop: true });
@@ -525,6 +676,7 @@ export default class Waiter extends Sprite {
      */
     set actionState(state) {
         this.#actionState = state;
+        console.debug(this.#actionState.constructor.LOGGER_TAG, "init");
         this.#actionState.init(this);
     }
 
@@ -533,6 +685,7 @@ export default class Waiter extends Sprite {
      */
     set lifeCycleState(state) {
         this.#lifeCycleState = state;
+        console.debug(this.#lifeCycleState.constructor.LOGGER_TAG, "init");
         this.#lifeCycleState.init(this);
     }
 
@@ -547,18 +700,19 @@ export default class Waiter extends Sprite {
     update() {
         
         const gridPos = { row: Math.floor(this.pos.y / this.scene.art.tileSize), col: Math.floor(this.pos.x / this.scene.art.tileSize)};
-        this.scene.grid[this.gridPos.row][this.gridPos.col] = this.prevGridValue ?? 0;
+        
         if(!(this.gridPos.row === gridPos.row && this.gridPos.col === gridPos.col)) {
             
-           this.scene.grid[this.gridPos.row][this.gridPos.col] = 0;
-            this.prevGridValue = this.scene.grid[this.gridPos.row][this.gridPos.col];
+            this.scene.grid[this.gridPos.row][this.gridPos.col] = this.gridCellValue; 
             this.gridPos = gridPos;
+            this.gridCellValue = this.scene.grid[this.gridPos.row][this.gridPos.col];
             this.scene.grid[this.gridPos.row][this.gridPos.col] = this.id;
-      
+
         }
 
         this.animations.update();
         this.#lifeCycleState.update(this);
         this.#actionState.update(this);
+        
     }
 }
