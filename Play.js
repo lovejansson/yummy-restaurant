@@ -176,12 +176,12 @@ export default class Play extends Scene {
 
         await this.art.images.load();
        
-        this.background = new StaticImage(this, Symbol("background"), { x: 0, y: 0 }, 320, 226, "background");
+        this.background = new StaticImage(this, Symbol("background"), { x: 0, y: 0 }, this.art.width, this.art.height, "background");
 
         this.#createTables();
         this.#createGrid();
   
-        this.waiters.push(new Waiter(this, Symbol("waiter"), {x: 0, y: 0}, 15, 32, "afro",  
+        this.waiters.push(new Waiter(this, Symbol("waiter"), {x: 0, y: 0}, 17, 32, "afro",  
         {x: 8 *  this.art.tileSize, y: 2 *  this.art.tileSize}, 
      {x: 10 * this.art.tileSize, y: this.art.height + this.art.tileSize}));
         this.waiters.push(new Waiter(this, Symbol("waiter"), {x: 0, y: 0}, 17, 32, "ginger",  
@@ -221,21 +221,21 @@ export default class Play extends Scene {
 
         this.background.draw(ctx);
 
-        ctx.fillStyle = "black";
+        // ctx.fillStyle = "black";
 
-        const COLS = this.art.width / this.art.tileSize;
-        const ROWS = this.art.height / this.art.tileSize;
+        // const COLS = this.art.width / this.art.tileSize;
+        // const ROWS = this.art.height / this.art.tileSize;
 
-        drawGrid(ctx, ROWS, COLS, this.art.tileSize, 0, 32);
+        // drawGrid(ctx, ROWS, COLS, this.art.tileSize, 0, 32);
 
-        for (let r = 0; r < this.grid.length; ++r) {
-            for (let c = 0; c < this.grid[0].length; ++c) {
-                if (this.grid[r][c] === 1) {
-                    ctx.fillStyle = "red";
-                    ctx.fillRect(c * 16, r * 16, 16, 16);
-                }
-            }
-        }
+        // for (let r = 0; r < this.grid.length; ++r) {
+        //     for (let c = 0; c < this.grid[0].length; ++c) {
+        //         if (this.grid[r][c] === 1) {
+        //             ctx.fillStyle = "red";
+        //             ctx.fillRect(c * 16, r * 16, 16, 16);
+        //         }
+        //     }
+        // }
 
         // Objects sorted by their y position 
         const objects = [

@@ -7,9 +7,9 @@ export default class Pause extends Scene {
     }
 
     async init() {
-        this.art.images.add("thumbnail", `${BASE_URL}images/background.png`);
+        this.art.images.add("pause", `${BASE_URL}images/pause.png`);
         await this.art.images.load();
-        this.image = new StaticImage(this, Symbol("pause-image"), {x: 0, y: 0}, 320, 226, "thumbnail");
+        this.image = new StaticImage(this, Symbol("pause-image"), {x: 0, y: 0}, this.art.width, this.art.height, "pause");
         this.isInitialized = true;
     }
 
