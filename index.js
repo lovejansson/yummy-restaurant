@@ -4,7 +4,9 @@ import Play from "./Play.js";
 import Pause from "./Pause.js";
 import EventsManager from "./EventsManager.js";
 import MessagesManager from "./message.js";
+import {Debugger} from "./debugger.js";
 
+export const debug = Debugger(false);
 
 const art = new Art({ 
     pause: new Pause(),
@@ -21,6 +23,7 @@ art.play();
 
 const musicPlayerEl = document.querySelector("music-player");
 
+
 musicPlayerEl.addEventListener("play", () => {
     if(!art.isPlaying) {
         art.isPlaying = true;
@@ -33,3 +36,4 @@ musicPlayerEl.addEventListener("pause", () => {
         art.isPlaying = false;
     }
 });
+

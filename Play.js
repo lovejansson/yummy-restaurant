@@ -17,16 +17,6 @@ export default class Play extends Scene {
         super();
 
         /**
-         * @type {AvailablePos[]}
-         */
-        this.waiterIdlePositions = [];
-
-        /**
-         * @type {AvailablePos[]}
-         */
-        this.kitchenPositions = []
-
-        /**
          * @type {Table[]}
          */
         this.tables = [];
@@ -43,22 +33,21 @@ export default class Play extends Scene {
 
     }
 
-    getKitchenPos() {
-        return this.kitchenPositions.filter(kp => kp.isAvailable).random().pos
-    }
-
-    getIdlePos() {
-        const idlePos =  this.waiterIdlePositions.filter(wip => wip.isAvailable).random();
-        idlePos.isAvailable = false;
-
-        return idlePos;
-    }
-
     removeGuestGroup(guestGroup) {
         guestGroup.table.isAvailable = true;
         this.guestGroups.remove(guestGroup);
         this.#createGuestGroup({name: "arrive"});
     }
+
+    anyGuestsAreLeaving() {
+        return this.guestGroups.some(gg => gg.guests.some(g => g.isLeaving()));
+    }
+    
+
+    anyGuestsAreArriving() {
+        return this.guestGroups.some(gg => gg.guests.some(g => g.isArriving()));
+    }
+    
 
     getGroupFor(guest) {
         return this.guestGroups.find(gg => gg.guests.find(g => g === guest) !== undefined);
@@ -89,15 +78,6 @@ export default class Play extends Scene {
                 {x: 0, y: 0},9, 7, image);
     }
 
-    removeOrder(order) {
-        const orderInList = this.orders.find(o => o === order);
-
-        if(!orderInList) {
-            console.error("Order not found: ", order);
-        } else {
-            this.orders.remove(orderInList);
-        }
-    }
 
     /**
      * @param {import("./menu.js").MenuItem} menuItem 
@@ -108,13 +88,14 @@ export default class Play extends Scene {
         return new StaticImage(this, Symbol("menu-item"), pos, menuItem.width, menuItem.height, menuItem.image);
     }
 
-
     async init() {
         console.debug("Play init")
         this.art.images.add("table", `${BASE_URL}images/table.png`);
         this.art.images.add("background", `${BASE_URL}images/background.png`);
-        this.art.images.add("waiter-afro-walk", `${BASE_URL}images/waiter-afro-walk.png`);
-        this.art.images.add("waiter-afro-walk-serve", `${BASE_URL}images/waiter-afro-walk-tray.png`);
+        this.art.images.add("waiter-afro-walk", `${BASE_URL}images/waiters/waiter-afro-walk.png`);
+        this.art.images.add("waiter-afro-walk-serve", `${BASE_URL}images/waiters/waiter-afro-walk-tray.png`);
+        this.art.images.add("waiter-ginger-walk", `${BASE_URL}images/waiters/waiter-ginger-walk.png`);
+        this.art.images.add("waiter-ginger-walk-serve", `${BASE_URL}images/waiters/waiter-ginger-walk-tray.png`);
 
         this.art.images.add("chair-0", `${BASE_URL}images/chair-n.png`);
         this.art.images.add("chair-1", `${BASE_URL}images/chair-e.png`);
@@ -193,21 +174,20 @@ export default class Play extends Scene {
         this.art.images.add("panna-cotta-with-red-berry-sauce-bite", `${BASE_URL}images/menu/dessert/panna-cotta-with-red-berry-sauce-bite.png`); 
         this.art.images.add("strawberry-cake-bite", `${BASE_URL}images/menu/dessert/strawberry-cake-bite.png`);
 
-     
-
         await this.art.images.load();
        
         this.background = new StaticImage(this, Symbol("background"), { x: 0, y: 0 }, 320, 226, "background");
 
         this.#createTables();
         this.#createGrid();
-        this.#createIdlePositions();
-        this.#createKitchenPositions();
-
-        for(let i = 0; i < 3; ++i) {
-      
-            this.waiters.push(new Waiter(this, Symbol("waiter"), {x: 0, y: 0}, 15, 32, "afro"));
-        }
+  
+        this.waiters.push(new Waiter(this, Symbol("waiter"), {x: 0, y: 0}, 15, 32, "afro",  
+        {x: 8 *  this.art.tileSize, y: 2 *  this.art.tileSize}, 
+     {x: 10 * this.art.tileSize, y: this.art.height + this.art.tileSize}));
+        this.waiters.push(new Waiter(this, Symbol("waiter"), {x: 0, y: 0}, 17, 32, "ginger",  
+        {x: 9 *  this.art.tileSize, y: 2 *  this.art.tileSize},
+        {x: 8 * this.art.tileSize, y: this.art.height + this.art.tileSize}
+    ));
     
         this.#initGuests(); 
 
@@ -217,18 +197,9 @@ export default class Play extends Scene {
 
     update() {
 
-        // if (this.art.keys.up) {
-        //      // console.log("up")
-        // } else if (this.art.keys.down) {
-        //     // console.log("down")
-        // } else if (this.art.keys.left) {
-        //     // console.log("left")
-        // } else if (this.art.keys.right) {
-        //     // console.log("right")
-        // } else if (this.art.keys.space) {
-        //     // console.log("space")
-        // }
-
+        if(!this.anyGuestsAreArriving() && !this.anyGuestsAreLeaving() && this.guestGroups.length < 4) {      
+            this.#createGuestGroup({name: "arrive"});
+         }
         for(const w of this.waiters) {
             w.update()
         }
@@ -263,7 +234,6 @@ export default class Play extends Scene {
                     ctx.fillStyle = "red";
                     ctx.fillRect(c * 16, r * 16, 16, 16);
                 }
-             
             }
         }
 
@@ -272,7 +242,6 @@ export default class Play extends Scene {
             ...this.guestGroups.map(gg => gg.guests).flat(),
             ...this.tables.map(t => t.chairs).flat(), 
             ...this.tables, ...this.waiters, 
-       
             ...this.guestGroups.filter(gg => gg.tableOrder !== null && gg.tableOrder.isServed)
             .flatMap(gg => gg.tableOrder.guestOrders.filter(o => !(o.guest.isDrinking() && o.menuItem.type === "drink")))
             ].sort((o1, o2) => {
@@ -288,13 +257,9 @@ export default class Play extends Scene {
         const guestGroupMessageBubbles = this.guestGroups.map(gg => gg.messageBubble);
         const guestMessageBubbles = this.guestGroups.map(gg => gg.guests).flat().map(g => g.messageBubble);
 
-        
         for(const w of this.waiters) {
-           
-            if(w.messageBubble.isShowing) w.messageBubble.draw(ctx)
-            
+            if(w.messageBubble.isShowing) w.messageBubble.draw(ctx)    
         }
-    
    
         for(const mb of guestGroupMessageBubbles) {
             if(mb.isShowing) {
@@ -308,72 +273,49 @@ export default class Play extends Scene {
             }
         }
 
-
     }
 
 
     #createGrid() {
+        // Initialize grid to 0 (walkable)
+        const rows = (this.art.height + this.art.tileSize) / this.art.tileSize;
+        const cols = this.art.width / this.art.tileSize;
+        this.grid = createGrid(rows, cols, 0);
 
-        this.grid = createGrid((this.art.height + this.art.tileSize) / this.art.tileSize, this.art.width / this.art.tileSize, 1);
-        
-        // Create walkable tiles (0) in grid
-
-        for (let c = 0; c < 21; ++c) {
-            this.grid[2][c] = 0;
-            this.grid[13][c] = 0;
-        }
-
-        for (let r = 3; r < 6; ++r) {
-            for (const c of [0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 18, 19, 20]) {
-                this.grid[r][c] = 0;
+        // Top 2 rows to 1 (non-walkable)
+        for (let r = 0; r < 2; ++r) {
+            for (let c = 0; c < cols; ++c) {
+                this.grid[r][c] = 1;
             }
         }
 
-        for (const c of [0, 5, 6, 7, 12, 13, 18, 19, 20]) {
-            this.grid[6][c] = 0;
-            this.grid[9][c] = 0;
-        }
-
-        for (let r = 7; r < 9; ++r) {
-
-            for (let c = 0; c < 8; ++c) {
-                this.grid[r][c] = 0;
-            }
-
-            for (let c = 12; c < 21; ++c) {
-                this.grid[r][c] = 0;
+        // Rightmost 4 columns to 1 (non-walkable)
+        for (let r = 0; r < rows; ++r) {
+            for (let c = cols - 4; c < cols; ++c) {
+                this.grid[r][c] = 1;
             }
         }
 
-        for (let r = 10; r < 13; ++r) {
-            for (const c of [0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 18, 19, 20]) {
-                this.grid[r][c] = 0;
+        // Each table and the tiles around it (but not the corners)
+        for (const t of this.tables) {
+            // Table center tile
+            const tC = t.pos.x / this.art.tileSize;
+            const tR = t.pos.y / this.art.tileSize;
+
+            for(const r of [tR - 1, tR, tR + 1, tR + 2]) {
+                for (const c of [tC - 1, tC, tC + 1, tC + 2]) {
+                    this.grid[r][c] = 1;
+                }
+            }
+
+            // Set corners back to 0 (walkable)
+            for (const c of t.corners) {
+                const cx = c.x / this.art.tileSize;
+                const cy = c.y / this.art.tileSize;
+                this.grid[cy][cx] = 0;
             }
         }
 
-        for(const t of this.tables) {
-            for(const c of t.corners) {
-                this.grid[c.y / this.art.tileSize][c.x / this.art.tileSize] = 0; // Set table corners to walkable (0)
-            }
-        }
-
-       for(let c = 0; c < this.grid[0].length; ++c) {
-            this.grid[this.grid.length - 2][c] = 0;
-            this.grid[this.grid.length - 1][c] = 0;
-       }
-        
-    }
-
-    #createIdlePositions() {
-        for (let c = 8; c < 12; ++c) {
-            this.waiterIdlePositions.push({ pos: {x: c *  this.art.tileSize, y: 2 *  this.art.tileSize}, isAvailable: true });
-        }
-    }
-
-    #createKitchenPositions() {
-        for (let c = 8; c < 12; ++c) {
-            this.kitchenPositions.push({ pos: {x: c * this.art.tileSize, y: this.art.height + this.art.tileSize}, isAvailable: true });
-        }
     }
 
     #createTables() {
@@ -406,17 +348,16 @@ export default class Play extends Scene {
                 chairs.push(new Chair(this, {...pos}, 17, 32, `chair-${i}`, i));
             }
 
-            this.tables.push(new Table(this, tp, chairs));
+            this.tables.push(new Table(this, tp, chairs, i));
 
          }
     }
 
     #initGuests() {
-
-        this.#createGuestGroup( {name: "arrive"});    
         this.#createGuestGroup( {name: "order", type: "food"});
         this.#createGuestGroup( {name: "receive-order", type: "dessert"});
         this.#createGuestGroup( {name: "eat-drink", type: "dessert"});
+        this.#createGuestGroup( {name: "arrive"});  
         this.#createGuestGroup( {name: "ask-bill"});
     }
 
@@ -425,7 +366,7 @@ export default class Play extends Scene {
         const table = this.tables.find(t => t.isAvailable);
      
         if(table === undefined) {
-            console.error("No availble table, should not happen though according to my perfectly coded program.");
+            console.error("No available table, should not happen though according to my perfectly coded program.");
             return;
         }
 
@@ -435,5 +376,5 @@ export default class Play extends Scene {
         this.guestGroups.push(guestGroup);
         guestGroup.init();
        
-    }3
+    }
 }

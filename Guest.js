@@ -3,6 +3,7 @@ import { MessageBubble } from "./message.js";
 import { NotImplementedError } from "./pim-art/errors.js";
 import { Sprite } from "./pim-art/index.js";
 import { WalkPath } from "./WalkPath.js";
+import { debug } from "./index.js";
 
 /**
  * @typedef {"n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw"} Direction
@@ -56,12 +57,24 @@ class LifeCycleState {
 export class Arrive extends LifeCycleState {
     static LOGGER_TAG = "Arrive"
 
+    constructor(waitPos){
+        super();
+        /**
+         * @type {{x: number, y: number}}
+         */
+        this.waitPos = waitPos;
+        /**
+         * @type {boolean}
+         */
+        this.hasReachedWaitPos = false;
+    }
+
     /**
      * @param {Guest} guest 
      */
     init(guest) {
         guest.direction = "e";
-        guest.actionState = new IdleStanding();
+        guest.actionState = new Walking();
     }
 
     /**
@@ -70,7 +83,17 @@ export class Arrive extends LifeCycleState {
     update(guest) {
 
         if (!this.isDone) {
-            if (guest.isIdleStanding()) {
+            if(!this.hasReachedWaitPos) {
+                if(guest.pos.x === this.waitPos.x){
+                    this.hasReachedWaitPos = true;
+                    guest.actionState = new IdleStanding();
+                } else {
+                    guest.pos.x += 1;
+                }
+           
+
+            } else {
+                 if (guest.isIdleStanding()) {
 
                 const message = guest.scene.art.services.messages.receive(guest);
 
@@ -101,6 +124,8 @@ export class Arrive extends LifeCycleState {
        
                 this.isDone = true;
             } 
+            }
+           
         }
     }
 }
@@ -116,7 +141,7 @@ export class EatAndDrink extends LifeCycleState {
     /**
      * @type {Action[]}
      */
-    static ACTIONS = ["eat", "drink", "idle"];
+    static ACTIONS = ["eat", "drink"];
 
     /**
      * @param {OrderedMenuItem} drinkItem
@@ -125,29 +150,26 @@ export class EatAndDrink extends LifeCycleState {
      */
     constructor(type, drinkItem, eatItem) {
         super();
-        console.debug(EatAndDrink.LOGGER_TAG, "constructor", type, drinkItem, eatItem)
+        debug(EatAndDrink.LOGGER_TAG, "constructor", type, drinkItem, eatItem)
         this.type = type;
         this.switchAction = false;
         this.drinkItem = drinkItem;
         this.eatItem = eatItem;
+        
     }
 
     /**
      * @param {Guest} guest 
      */
     init(guest) {
-
         this.currAction = "eat"
 
         switch (this.currAction) {
             case "eat":
-                guest.actionState = new Eating(this.eatItem.menuItem);
+                    guest.actionState = new Eating(this.eatItem.menuItem);
                 break;
             case "drink":
-                guest.actionState = new Drinking(this.drinkItem.menuItem);
-                break;
-            case "idle":
-                guest.actionState = new IdleSitting(3000);
+                    guest.actionState = new Drinking(this.drinkItem.menuItem);
                 break;
         }
     }
@@ -158,27 +180,24 @@ export class EatAndDrink extends LifeCycleState {
     update(guest) {
 
         if (this.eatItem.bitesLeft === 0) {
+            debug(EatAndDrink.LOGGER_TAG,"no bites left");
+            guest.actionState = new IdleSitting();
             this.isDone = true;
             return;
         }
 
         if (!this.isDone && guest.actionState.isDone) {
-
+            debug(EatAndDrink.LOGGER_TAG,"Switching action", this.eatItem.bitesLeft)
             switch (this.currAction) {
                 case "eat":
-                    console.debug(EatAndDrink.LOGGER_TAG, "Eating")
-                     this.eatItem.eat();
-                    this.currAction = "idle";
-                    guest.actionState = new IdleSitting(3000);
+                        this.eatItem.eat();
+                        this.currAction = "drink";
+                        guest.actionState = new Drinking(this.drinkItem.menuItem);
                     break;
                 case "drink":
                     if ((this.eatItem.bitesLeft === Math.floor(this.eatItem.bitesTot / 2) || this.eatItem.bitesLeft === 1) && this.drinkItem.sipsLeft > 0) this.drinkItem.drink();
-                    this.currAction = "idle";
-                    guest.actionState = new IdleSitting(3000);
-                    break;
-                case "idle":
-                    this.currAction = ["eat", "drink"].random();
-                    guest.actionState = this.currAction === "eat" ? new Eating(this.eatItem.menuItem) : new Drinking(this.drinkItem.menuItem)
+                        this.currAction = "eat";
+                        guest.actionState = new Eating(this.eatItem.menuItem);
                     break;
             }
         }
@@ -206,7 +225,7 @@ export class ReceiveOrder extends LifeCycleState {
             const message = guest.scene.art.services.messages.receive(guest);
 
             if (message !== undefined) {
-                console.debug(ReceiveOrder.LOGGER_TAG, "is done");
+                debug(ReceiveOrder.LOGGER_TAG, "is done");
                 this.isDone = true;
             }
         }
@@ -221,7 +240,7 @@ export class GetBill extends LifeCycleState {
     constructor(shouldPay) {
         super();
         this.shouldPay = shouldPay;
-        console.debug(GetBill.LOGGER_TAG, this.shouldPay);
+        debug(GetBill.LOGGER_TAG, this.shouldPay);
     }
 
     init(guest) {
@@ -238,7 +257,7 @@ export class GetBill extends LifeCycleState {
                 const message = guest.scene.art.services.messages.receive(guest);
 
                 if (message !== undefined) {
-                    console.debug(GetBill.LOGGER_TAG, "is done");
+                    debug(GetBill.LOGGER_TAG, "is done");
                     this.isDone = true;
                 }
             } else {
@@ -369,7 +388,6 @@ export class EatDrinkDone extends LifeCycleState {
      * @param {Guest} guest 
      */
     update(guest) {
-
         if (!this.isDone) {
 
             const message = guest.scene.art.services.messages.receive(guest);
@@ -391,8 +409,8 @@ export class Leave extends LifeCycleState {
      */
     init(guest) {
         setTimeout(() => {
-         guest.actionState = new StandingUp(guest.direction);
-        }, [5000, 5000, 4000, 3000][guest.tableSide])
+            this.shouldLeave = true;
+        }, [6000, 5000, 3000, 1000][guest.tableSide])
 
     }
 
@@ -401,15 +419,19 @@ export class Leave extends LifeCycleState {
      */
     update(guest) {
 
-        if (guest.isIdleStanding()) {
- 
+        if(guest.isIdleSitting()) {
+            if(this.shouldLeave) {
+                guest.actionState = new StandingUp(guest.direction);
+            }
+        } else if (guest.isIdleStanding()) {
             guest.actionState = new Walking({ x: 0, y: guest.scene.art.tileSize * (Math.random() > 0.5 ? 6 : 7)});
         } else if (guest.isWalking() && guest.actionState.path.hasReachedGoal) {
 
             // Keep walking out, guest group will take this guest away
-            if(guest.pos.x < -guest.scene.art.tileSize) {
+            if(guest.pos.x < -guest.scene.art.tileSize * 2) {
                 this.isDone = true;
             }
+
             guest.pos.x -= 1;
             guest.direction = "w";
             
@@ -435,8 +457,6 @@ class Eating extends ActionState {
      * @param {Guest} guest 
      */
     init(guest) {
-
-        guest.animations.play(`eat-${guest.direction}`);
 
         let overlay;
 
@@ -468,7 +488,10 @@ class Eating extends ActionState {
      */
     update(guest) {
         if(guest.animations.loopCount() > 3){
+            debug(Eating.LOGGER_TAG, "done loop count is past 3")
             this.isDone = true;
+        } else {
+            debug(Eating.LOGGER_TAG, "loop count", guest.animations.loopCount())
         }
 
     }
@@ -477,7 +500,7 @@ class Eating extends ActionState {
 
 class Drinking extends ActionState {
 
-        static LOGGER_TAG = "Drinking"
+    static LOGGER_TAG = "Drinking"
 
     /**
      * @param {import("./menu.js").MenuItem} menuItem
@@ -520,6 +543,7 @@ class Drinking extends ActionState {
     update(guest) {
 
         if (guest.animations.loopCount() === 1) {
+            debug(Eating.LOGGER_TAG, "done loop count is 1")
             this.isDone = true;
         }
     }
@@ -531,7 +555,7 @@ class Walking extends ActionState {
     static LOGGER_TAG = "Walking"
 
     /**
-     * @type {{x: number, y: number}}
+     * @type {{x: number, y: number} | undefined}
      */
     goal;
 
@@ -551,14 +575,18 @@ class Walking extends ActionState {
      */
     update(guest) {
 
-        if (this.path === null) {
-            this.path = new WalkPath(guest, { x: this.goal.x, y: this.goal.y });
+        if(this.goal) {
+            if (this.path === null) {
+                    this.path = new WalkPath(guest, { x: this.goal.x, y: this.goal.y });
+                }
+
+                this.path.update(guest);
+
+                guest.pos = this.path.getPos();
+
         }
 
-        this.path.update(guest);
-
-        guest.pos = this.path.getPos();
-
+   
         if (!guest.animations.isPlaying(`walk-${guest.direction}`)) {
             guest.animations.play(`walk-${guest.direction}`);
         }
@@ -789,10 +817,7 @@ export default class Guest extends Sprite {
         this.tableSide = tableSide;
         this.variant = variant;
 
-        this.gridPos = { row: Math.floor(this.pos.y / this.scene.art.tileSize), col: Math.floor(this.pos.x / this.scene.art.tileSize) };
-        this.gridCellValue = this.scene.grid[this.gridPos.row][this.gridPos.col];
-        this.scene.grid[this.gridPos.row][this.gridPos.col] = this.id;
-
+        this.gridPos = null;
         this.animations.create("walk-s", { type: "spritesheet", frames: `${variant}-walk`, frameRate: 100, numberOfFrames: 4, startIdx: 0, loop: true });
         this.animations.create("walk-se", { type: "spritesheet", frames: `${variant}-walk`, frameRate: 100, numberOfFrames: 4, startIdx: 4, loop: true });
         this.animations.create("walk-e", { type: "spritesheet", frames: `${variant}-walk`, frameRate: 100, numberOfFrames: 4, startIdx: 8, loop: true });
@@ -816,10 +841,10 @@ export default class Guest extends Sprite {
         this.animations.create("idle-sit-s", { type: "spritesheet", frames: `${variant}-sit`, frameRate: 100000, numberOfFrames: 1, startIdx: 0, loop: true });
         this.animations.create("idle-sit-w", { type: "spritesheet", frames: `${variant}-sit`, frameRate: 100000, numberOfFrames: 1, startIdx: 2, loop: true });
 
-        this.animations.create("eat-n", { type: "spritesheet", frames: `${variant}-eat`, frameRate: 100000, numberOfFrames: 1, startIdx: 7, loop: true });
-        this.animations.create("eat-e", { type: "spritesheet", frames: `${variant}-eat`, frameRate: 1000, numberOfFrames: 2, startIdx: 3, loop: true });
-        this.animations.create("eat-s", { type: "spritesheet", frames: `${variant}-eat`, frameRate: 1000, numberOfFrames: 3, startIdx: 0, loop: true });
-        this.animations.create("eat-w", { type: "spritesheet", frames: `${variant}-eat`, frameRate: 1000, numberOfFrames: 2, startIdx: 5, loop: true });
+        this.animations.create("eat-n", { type: "spritesheet", frames: `${variant}-eat`, frameRate: 1500, numberOfFrames: 1, startIdx: 7, loop: true });
+        this.animations.create("eat-e", { type: "spritesheet", frames: `${variant}-eat`, frameRate: 750, numberOfFrames: 2, startIdx: 3, loop: true });
+        this.animations.create("eat-s", { type: "spritesheet", frames: `${variant}-eat`, frameRate: 500, numberOfFrames: 3, startIdx: 0, loop: true });
+        this.animations.create("eat-w", { type: "spritesheet", frames: `${variant}-eat`, frameRate: 750, numberOfFrames: 2, startIdx: 5, loop: true });
 
         this.animations.create("drink-n", { type: "spritesheet", frames: `${variant}-drink`, frameRate: 1000, numberOfFrames: 1, startIdx: 9, loop: true });
         this.animations.create("drink-e", { type: "spritesheet", frames: `${variant}-drink`, frameRate: 1000, numberOfFrames: 1, startIdx: 4, loop: true });
@@ -836,7 +861,7 @@ export default class Guest extends Sprite {
      */
     set actionState(state) {
         this.#actionState = state;
-        console.debug(this.#actionState.constructor.LOGGER_TAG, "init");
+        debug(this.#actionState.constructor.LOGGER_TAG, "init");
         this.#actionState.init(this);
     }
 
@@ -849,7 +874,7 @@ export default class Guest extends Sprite {
      */
     set lifeCycleState(state) {
         this.#lifeCycleState = state;
-        console.debug(this.#lifeCycleState.constructor.LOGGER_TAG, "init");
+        debug(this.#lifeCycleState.constructor.LOGGER_TAG, "init");
         this.#lifeCycleState.init(this);
 
     }
@@ -862,23 +887,23 @@ export default class Guest extends Sprite {
     }
 
     isIdleStanding() {
-        return this.actionState instanceof IdleStanding;
+        return this.#actionState instanceof IdleStanding;
     }
 
     isIdleSitting() {
-        return this.actionState instanceof IdleSitting;
+        return this.#actionState instanceof IdleSitting;
     }
 
     isSittingDown() {
-        return this.actionState instanceof SittingDown;
+        return this.#actionState instanceof SittingDown;
     }
 
     isStandingUp() {
-        return this.actionState instanceof StandingUp;
+        return this.#actionState instanceof StandingUp;
     }
 
     isWalking() {
-        return this.actionState instanceof Walking;
+        return this.#actionState instanceof Walking;
     }
 
     isArriving() {
@@ -909,26 +934,40 @@ export default class Guest extends Sprite {
         return this.#lifeCycleState instanceof Leave;
     }
 
+    isAskingForBill() {
+        return this.#lifeCycleState instanceof AskForBill;
+    }
+
+    isGettingBill() {
+        return this.#lifeCycleState instanceof GetBill;
+    }
+
+    isSittingOnChair() {
+        return this.isEating() || this.isDrinking() || this.isIdleSitting() || this.isSittingDown() || this.isStandingUp();
+    }
+
     update() {
-        const gridPos = { row: Math.floor(this.pos.y / this.scene.art.tileSize), col: Math.floor(this.pos.x / this.scene.art.tileSize) };
-
-        if (!(this.gridPos.row === gridPos.row && this.gridPos.col === gridPos.col)) {
-
-            this.scene.grid[this.gridPos.row][this.gridPos.col] = this.gridCellValue;
-            this.gridPos = gridPos;
-            this.gridCellValue = this.scene.grid[this.gridPos.row][this.gridPos.col];
-
-            // When guest is walking or about to walk we mark the current cells as occupied
-            if (this.isArriving() || this.isLeaving()) {
-                this.scene.grid[this.gridPos.row][this.gridPos.col] = this.id;
-            }
-
-        }
-
- 
+       
         this.#lifeCycleState.update(this);
         this.#actionState.update(this);
         this.animations.update();
+
+        const gridPos = { row: Math.floor(this.pos.y / this.scene.art.tileSize), col: Math.floor(this.pos.x / this.scene.art.tileSize) };
+
+        if (this.gridPos === null || !(this.gridPos.row === gridPos.row && this.gridPos.col === gridPos.col)) {
+            if(this.gridPos !== null && this.gridPos !== null && this.scene.grid[this.gridPos.row][this.gridPos.col] === this.id) {
+                this.scene.grid[this.gridPos.row][this.gridPos.col] = 2; // Set previous cell to cool down to avoid swapping  
+            }
+
+            this.gridPos = gridPos; 
+
+            // occupy this grid pos if the guest isn't at its chair position, that causes the sprite id to remain when finally seated without getting cleared. 
+            if(this.scene.grid[gridPos.row][gridPos.col] === 0 && !this.isSittingOnChair()) {
+                this.scene.grid[this.gridPos.row][this.gridPos.col] = this.id;
+            }
+        } 
+
+        if(this.isSittingOnChair() && this.scene.grid[this.gridPos.row][this.gridPos.col] === this.id) this.scene.grid[this.gridPos.row][this.gridPos.col] = 0;
 
     }
 }

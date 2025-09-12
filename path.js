@@ -1,4 +1,5 @@
 import "./array.js"
+import { debug } from "./index.js";
 
 /**
  * @typedef Cell 
@@ -11,7 +12,7 @@ import "./array.js"
 * @param {Cell} cell 
 * @param {number[][]} grid
 */
-const getNeighbours = (cell, grid, includeDiagonalNeighbours = false) => {
+export const getNeighbours = (cell, grid, includeDiagonalNeighbours = false) => {
   
     const rows = grid.length;
     const cols = grid[0].length;
@@ -53,7 +54,6 @@ function createPathBFS(start, end, grid) {
         let curr = end;
 
         let path = [end];
-        // console.log(pathMap)
         
         while (!(curr.row === start.row && curr.col === start.col)) {
           
@@ -96,6 +96,16 @@ function createPathBFS(start, end, grid) {
 }
 
 /**
+ * @param {Cell} cell 
+ * @param {any[][]} grid 
+ * @returns {boolean}
+ */
+function cellIsWithinBounds(cell, grid) {
+    return cell.row >= 0 && cell.row < grid.length && cell.col >= 0 && cell.col < grid[0].length;
+}
+
+
+/**
  * Creates the closest path in the grid using A*algorithm 
  *  
  * @param {Cell} start 
@@ -105,18 +115,25 @@ function createPathBFS(start, end, grid) {
  * @returns {Cell[]} path, array of grid cells 
  * 
  */
-function createPathAStar(start, end, grid, walkableTileValues = [0]) {
-    //  console.debug("Creating path from " + JSON.stringify(start) + " to " + JSON.stringify(end));
-      console.debug(grid[start.row][start.col], grid[end.row][end.col]);
+function createPathAStar(start, end, grid) {
+    debug("Creating path from " + JSON.stringify(start) + " to " + JSON.stringify(end));
+    debug(grid[start.row][start.col], grid[end.row][end.col]);
 
+    if(!cellIsWithinBounds(start, grid)) throw new Error("start cell is out of bounds");
+    if(!cellIsWithinBounds(end, grid)) throw new Error("end cell is out of bounds"); 
+    if(grid[start.row][start.col] === 1) throw new Error(`start cell is a non walkable cell: ${start.row}:${start.col}`);
+    if(grid[end.row][end.col] === 1) {
+        console.dir(grid)
+        throw new Error(`end cell is a non walkable cell. ${end.row}:${end.col}`);}
 
-    if(grid[start.row][start.col] === 1) throw new Error(`Start cell is a non walkable cell: ${start.row}:${start.col}`);
-    if(grid[end.row][end.col] === 1) throw new Error(`End cell is a non walkable cell. ${end.row}:${end.col}`);
 
     const rows = grid.length;
     const cols = grid[0].length;
 
-    const heuristic = (curr, to) => Math.abs(curr.row - to.row) + Math.abs(curr.col - to.col);
+    const manhattan = (from, to) => Math.abs(to.row - from.row) + Math.abs(to.col - from.col);
+    const euclidean = (from, to) => Math.sqrt(Math.pow(from.row - to.row, 2) + Math.pow(from.col - to.col, 2));
+
+    const heuristic = euclidean;
 
     const reconstructPath = (pathMap) => {
 
@@ -149,7 +166,8 @@ function createPathAStar(start, end, grid, walkableTileValues = [0]) {
 
     while(openList.length > 0) {
      
-        // Find cell with lowest score in the openList bc this is the most optimal path to take
+        // Find cell with lowest score in the openList bc this is the most optimal path to take right now
+
         curr = openList.reduce((optimalCell, curr) => {
             if(optimalCell === undefined 
                 || scoresMap[curr.row][curr.col] < scoresMap[optimalCell.row][optimalCell.col]) {
@@ -160,17 +178,18 @@ function createPathAStar(start, end, grid, walkableTileValues = [0]) {
 
         }, undefined);
 
-        // We reached the end cell
         if(curr.row === end.row && curr.col === end.col) break;
 
-        const neighbours = getNeighbours(curr, grid, true);
+        const neighbours = getNeighbours(curr, grid);
 
         const g = scoresMap[curr.row][curr.col] + 1; 
 
         for(const n of neighbours) {
 
-           
-            if(grid[n.row][n.col] === 1) continue //
+            // if(!walkableTileValues.includes(grid[n.row][n.col])) continue;
+            
+            if(grid[n.row][n.col] === 1) continue;
+
             const h = heuristic(n, end);
             const f = g + h;
 
@@ -183,9 +202,8 @@ function createPathAStar(start, end, grid, walkableTileValues = [0]) {
                 continue;
             } else {
                 if(cellInOpenedList === undefined) openList.push(n); 
-                scoresMap[n.row][n.col] = f;
+                scoresMap[n.row][n.col] = g;
                 pathMap[n.row][n.col] = curr;
-                // Vi kommer inte in hit för att lägga till pathmap[end.row][end.col]
             }
         }
 
@@ -194,11 +212,9 @@ function createPathAStar(start, end, grid, walkableTileValues = [0]) {
     }
 
     if(pathMap[end.row][end.col] === null) {
-        // console.log(pathMap)
-        // console.log(grid)
-        // console.log(start)
-        // console.log(end)
-        throw Error("Invalid path")}
+        throw new Error("No path found, should not happen")
+    }
+
     return reconstructPath(pathMap);
 }
 

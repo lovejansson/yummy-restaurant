@@ -2,6 +2,7 @@ import Guest, { Arrive, Order, ReceiveOrder, EatAndDrink, EatDrinkDone, Leave, I
 import { MessageBubble } from "./message.js";
 import TableOrder from "./TableOrder.js";
 import { menu, OrderedMenuItem } from "./menu.js";
+import { debug } from "./index.js";
 
 export default class GuestGroup {
 
@@ -11,7 +12,7 @@ export default class GuestGroup {
      * @param {import("./Play.js").default} scene
      * @param {Table} table
      * @param {{
-     * name: "arrive" | "eat-drink" | "order" | "receive-order" | "ask-bill" | "get-bill" | "leave" , 
+     * name: "arrive" | "eat-drink" | "order" | "receive-order" | "ask-bill" | "get-bill" | "leave-wait" | "leave" , 
      * type?: "food" | "dessert"}} initalState
      */
     constructor(scene, initalState, table) {
@@ -45,9 +46,9 @@ export default class GuestGroup {
 
     init() {
 
-        // Create the guests
+        // Create the guests and sort by distance to table so the closest guest gets the first chair
 
-        const numOfGuests = Math.ceil(Math.random() * 4);
+        const numOfGuests = 4; //  Math.ceil(Math.random() * 4);
 
         if (numOfGuests === 2) {
 
@@ -68,6 +69,8 @@ export default class GuestGroup {
             }
         }
 
+ 
+
         // Initialize the states 
         switch (this.state.name) {
 
@@ -76,28 +79,33 @@ export default class GuestGroup {
                 const FIRST_POS = { x: 0, y: this.scene.art.tileSize * 6 };
 
                 const xyDiffs = [{ x: this.scene.art.tileSize, y: this.scene.art.tileSize },
-                { x: 0, y: this.scene.art.tileSize * 2 },
-                { x: 0, y: this.scene.art.tileSize }, { x: 0, y: 0 },
+                    { x: 0, y: this.scene.art.tileSize * 2 },
+                    { x: 0, y: this.scene.art.tileSize }, { x: 0, y: 0 },
                 ]
 
 
                 for (let i = 0; i < this.guests.length; ++i) {
                     const guest = this.guests[i];
-                    guest.pos = { x: FIRST_POS.x + xyDiffs[i].x, y: FIRST_POS.y + xyDiffs[i].y };
-                    guest.lifeCycleState = new Arrive();
+                    const waitPos = { x: FIRST_POS.x + xyDiffs[i].x, y: FIRST_POS.y + xyDiffs[i].y };
+                    guest.pos = {x: waitPos.x - this.scene.art.tileSize + Math.floor(Math.random() * numOfGuests) , y: waitPos.y};
+                    guest.lifeCycleState = new Arrive(waitPos);
                 }
 
                 // Show ! in message bubble until waiter comes to serve them
                 const msgBubblePos = {
-                    x: 0,
-                    y: this.guests.length > 1 ? FIRST_POS.y - this.messageBubble.height : FIRST_POS.y - this.messageBubble.height
+                    x:  this.scene.art.tileSize,
+                    y: FIRST_POS.y + this.scene.art.tileSize - this.messageBubble.height
                 }
-
-                this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
+                setTimeout(() => {
+                    this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
                     msgBubblePos, 1000 * 60);
-
-                this.scene.art.services.events.add({ name: this.state.name, data: { guestGroup: this } });
-
+                     this.scene.art.services.events.add({ name: this.state.name, data: { guestGroup: this } });
+                }, 1500)
+                this.guests.sort((g1, g2) => {
+                    const d1 = Math.sqrt(Math.pow(g1.pos.x - this.table.pos.x, 2) + Math.pow(g1.pos.y - this.table.pos.y + this.table.halfHeight, 2));
+                    const d2 = Math.sqrt(Math.pow(g2.pos.x - this.table.pos.x, 2) + Math.pow(g2.pos.y - this.table.pos.y  + this.table.halfHeight, 2));
+                    return d1 - d2;
+                });
                 break;
             case "eat-drink":
 
@@ -125,7 +133,10 @@ export default class GuestGroup {
                     this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
                         msgBubblePos, 10000);
 
-                    this.scene.art.services.events.add({ name: `${this.state.name}-${this.state.type}`, data: { guestGroup: this } });
+                    setTimeout(() =>  {
+                        this.scene.art.services.events.add({ name: `${this.state.name}-${this.state.type}`, data: { guestGroup: this } });
+                    }, 2000);
+
                     break;
                 }
 
@@ -155,7 +166,11 @@ export default class GuestGroup {
                         g.lifeCycleState = new AskForBill(g === guestWhoShouldPay);
                     }
 
-                    this.scene.art.services.events.add({ name: "bill", data: { guestGroup: this } });
+                  
+                    setTimeout(() =>  {
+                        this.scene.art.services.events.add({ name: "bill", data: { guestGroup: this } });
+
+                    }, 3000);
 
                     this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
                         {
@@ -196,12 +211,17 @@ export default class GuestGroup {
     }
 
     update() {
+        // debug(GuestGroup.LOGGER_TAG, "update", "table", this.table.tableNum);
+        // debug(GuestGroup.LOGGER_TAG, this.state);
+
+        if(!this.lifeCycleStateIsDone() && this.state.name === "eat-drink") {
+            // for(const g of this.guests) {
+            //     console.dir(g);
+            // }
+        }
+       
         if (this.lifeCycleStateIsDone()) {
-            if(this.state.name === "eat-drink") {
-                console.debug(GuestGroup.LOGGER_TAG, "states")
-                console.dir(this.tableOrder)
-            }
-            console.debug(GuestGroup.LOGGER_TAG, this.state);
+            debug(GuestGroup.LOGGER_TAG, "guest group is done with ", this.state.name)
             switch (this.state.name) {
                 case "arrive":
                     {
@@ -246,7 +266,7 @@ export default class GuestGroup {
 
                 case "eat-drink":
 
-                    console.debug(GuestGroup.LOGGER_TAG, "eat-drink done")
+                    debug(GuestGroup.LOGGER_TAG, "eat-drink done")
 
                     for (const g of this.guests) {
                         g.lifeCycleState = new EatDrinkDone();
@@ -306,22 +326,22 @@ export default class GuestGroup {
                     break;
 
                 case "get-bill":
+                    this.state = { name: "leave-wait" };
+                    this.#showMessageBubble("heart");
+                    break;
 
-                    console.debug(GuestGroup.LOGGER_TAG, "Guest group should leave");
-
+                case "leave-wait":
+                    if(this.scene.anyGuestsAreLeaving() || this.scene.anyGuestsAreArriving()) break; // It's to crowded to leave right now
                     for (let i = 0; i < this.guests.length; ++i) {
                         this.guests[i].lifeCycleState = new Leave();
                     }
-
-                    this.state = { name: "leave" };
-                    this.#showMessageBubble("heart");
+                    this.state = { name: "leave" }; 
                     break;
 
                 case "leave":
                     this.scene.removeGuestGroup(this);
                     break;
             }
-
         }
     }
 

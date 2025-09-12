@@ -17,10 +17,12 @@ export class Table extends StaticImage {
      * @param {Scene} scene
      * @param {{ x: number, y: number }} pos
      * @param {Chair[]} chairs
+     * @param {number} tableNum
      */
-    constructor(scene, pos, chairs) {
+    constructor(scene, pos, chairs, tableNum) {
         super(scene, Symbol("table"), pos, 32, 32, "table");
 
+        this.tableNum = tableNum;
         this.centerPos = {x: this.pos.x + this.halfWidth, y: this.pos.y + this.halfHeight};
         this.isAvailable = true;
         this.chairs = chairs;
@@ -34,7 +36,10 @@ export class Table extends StaticImage {
     }
 
     getWaiterWelcomeCorner() {
-        return{direction: "sw", pos: {x: this.corners[1].x + this.scene.art.tileSize, y: this.corners[1].y}}
+     
+        return this.tableNum < 3  ?
+         {direction: "sw", pos: {x: this.corners[1].x + this.scene.art.tileSize, y: this.corners[1].y - this.scene.art.tileSize}}
+         :       {direction: "nw", pos: {x: this.corners[2].x + this.scene.art.tileSize, y: this.corners[2].y + this.scene.art.tileSize}};
     }
 
     /**

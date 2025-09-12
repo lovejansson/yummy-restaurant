@@ -5,6 +5,7 @@ import { Sprite } from "./pim-art/index.js";
 import Play from "./Play.js";
 import TableOrder from "./TableOrder.js";
 import { WalkPath } from "./WalkPath.js";
+import { debug } from "./index.js";
 
 class ActionState {
     /**
@@ -42,24 +43,20 @@ class Wait extends LifeCycleState {
 
     static LOGGER_TAG = "Wait";
 
-    /**
-     * 
-     * @param {{pos: {x: number, y: number}, isAvailable: boolean}} idlePos 
-     */
-    constructor(idlePos) {
+    constructor() {
         super();
-        console.debug(Wait.LOGGER_TAG, "constructor", idlePos);
-        this.idlePos = idlePos;
+        debug(Wait.LOGGER_TAG, "constructor");
     }
 
     /**
      * @param {Waiter} waiter 
      */
     init(waiter) {
-        console.debug(Wait.LOGGER_TAG, "init");
-        waiter.pos = this.idlePos.pos;
-        waiter.direction = "s";
+        debug(Wait.LOGGER_TAG, "init");
+        waiter.pos = waiter.idlePos;
         waiter.actionState = new Idle();
+        waiter.direction = "s";
+
     }
 
     /**
@@ -70,7 +67,7 @@ class Wait extends LifeCycleState {
         const event = waiter.scene.art.config.services.events.next();
 
         if (event !== undefined) {
-            console.debug(Wait.LOGGER_TAG, "received event", event);
+            debug(Wait.LOGGER_TAG, "received event", event);
 
             switch (event.name) {
                 case "order-food":
@@ -95,9 +92,6 @@ class Wait extends LifeCycleState {
                     waiter.lifeCycleState = new ServeOrder(event.data.guestGroup);
                     break;
             }
-
-            this.idlePos.isAvailable = true;
-
         }
     }
 }
@@ -116,23 +110,14 @@ class Welcome extends LifeCycleState {
         super();
         this.guestGroup = guestGroup;
         this.currGoal = "guest";
-        this.prevNotified = 1000;
-        this.notifyGuestIdx = 0;
-        this.tableCornerIdx = 1;
     }
 
     /**
      * @param {Waiter} waiter 
      */
     init(waiter) {
-       console.debug(Welcome.LOGGER_TAG, "init")
-        const pos = this.guestGroup.guests.length > 2 ?
-            { x: waiter.scene.art.tileSize * 2, y: this.guestGroup.guests[0].pos.y + waiter.scene.art.tileSize } :
-            { x: waiter.scene.art.tileSize, y: this.guestGroup.guests[0].pos.y + waiter.scene.art.tileSize }
-
-        console.debug(Welcome.LOGGER_TAG, waiter.scene.grid[Math.floor(pos.y / 16)][Math.floor(pos.x / 16)])
-        
-        waiter.actionState = new Walking(pos);
+    const pos = { x: waiter.scene.art.tileSize * 2, y: waiter.scene.art.tileSize * 7  } 
+    waiter.actionState = new Walking(pos);
     }
 
     /**
@@ -148,6 +133,7 @@ class Welcome extends LifeCycleState {
                         this.guestGroup.waiterIsHere();
                         waiter.actionState = new Idle();
                         waiter.messageBubble.showMessage(waiter.scene.createSymbol("smiley"), { x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height });
+                        waiter.direction = "w";
                     }
 
                 } else if (!waiter.messageBubble.isShowing) {
@@ -164,8 +150,9 @@ class Welcome extends LifeCycleState {
         
                     if (waiter.actionState.path.cellCount === 2 && !this.hasNotifiedFirstGuest) {
 
-                        console.debug(Welcome.LOGGER_TAG, "notifying guest to walk after me");
-                                this.hasNotifiedFirstGuest = true
+                        debug(Welcome.LOGGER_TAG, "notifying guest to walk after me");
+                                this.hasNotifiedFirstGuest = true;
+
                         waiter.scene.art.services.messages.send({ guestGroup: this.guestGroup }, waiter, this.guestGroup.guests[0]);
    
                     }
@@ -188,12 +175,11 @@ class Welcome extends LifeCycleState {
             case "idle-spot":
                 if (waiter.isWalking()) {
                     if (waiter.actionState.path.hasReachedGoal) {
-                        waiter.lifeCycleState = new Wait(this.idlePos);
+                        waiter.lifeCycleState = new Wait();
                     }
 
                 } else if (!waiter.messageBubble.isShowing) {
-                    this.idlePos = waiter.scene.getIdlePos();
-                    waiter.actionState = new Walking(this.idlePos.pos);
+                    waiter.actionState = new Walking(waiter.idlePos);
                 }
 
                 break;
@@ -215,14 +201,14 @@ class BillRequest extends LifeCycleState {
 
         this.guestGroup = guestGroup;
         this.hasAskedForBill = false;
-        console.debug(BillRequest.LOGGER_TAG, "constructor");
+        debug(BillRequest.LOGGER_TAG, "constructor");
     }
 
     /**
      * @param {Waiter} waiter 
      */
     init(waiter) {
-        console.debug(BillRequest.LOGGER_TAG, "init");
+        debug(BillRequest.LOGGER_TAG, "init");
         this.corner = this.guestGroup.table.getWaiterCorner(waiter);
         waiter.actionState = new Walking(this.corner.pos);
     }
@@ -249,10 +235,9 @@ class BillRequest extends LifeCycleState {
 
                     setTimeout(() => {
                         waiter.scene.art.services.events.add({ name: "bill-ready", data: { guestGroup: this.guestGroup } });
-                    }, 1000 * 5);
+                    }, 1000 * 60);
 
-                    this.idlePos = waiter.scene.getIdlePos();
-                    waiter.actionState = new Walking(this.idlePos.pos);
+                    waiter.actionState = new Walking(waiter.idlePos);
                     waiter.messageBubble.isShowing = false;
                     this.hasAskedForBill = true;
                 }
@@ -260,7 +245,7 @@ class BillRequest extends LifeCycleState {
 
         } else {
             if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                waiter.lifeCycleState = new Wait(this.idlePos);
+                waiter.lifeCycleState = new Wait();
             }
         }
      }
@@ -277,14 +262,14 @@ class GiveBill extends LifeCycleState {
         super();
         this.guestGroup = guestGroup;
         this.hasGivenBill = false;
-        console.debug(GiveBill.LOGGER_TAG, "constructor");
+        debug(GiveBill.LOGGER_TAG, "constructor");
     }
 
     /**
      * @param {Waiter} waiter 
      */
     init(waiter) {
-        console.debug(GiveBill.LOGGER_TAG, "init");
+        debug(GiveBill.LOGGER_TAG, "init");
         this.corner = this.guestGroup.table.getWaiterCorner(waiter);
         waiter.actionState = new Walking(this.corner.pos)
     }
@@ -295,8 +280,8 @@ class GiveBill extends LifeCycleState {
     update(waiter) {
         if(this.hasGivenBill) {
              if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                    console.debug(GiveBill.LOGGER_TAG, "done");
-                    waiter.lifeCycleState = new Wait(this.idlePos);
+                    debug(GiveBill.LOGGER_TAG, "done");
+                    waiter.lifeCycleState = new Wait();
             }
         } else {
             if (waiter.isWalking()) {
@@ -307,11 +292,10 @@ class GiveBill extends LifeCycleState {
                 }
 
             } else if (!waiter.messageBubble.isShowing) {
-                console.debug(GiveBill.LOGGER_TAG, "idle");
+                debug(GiveBill.LOGGER_TAG, "idle");
                 waiter.scene.art.services.messages.send("bill", waiter, this.guestGroup.guests.find(g => g.lifeCycleState.shouldPay));
                 this.currGoal = "idle";
-                this.idlePos = waiter.scene.getIdlePos();
-                waiter.actionState = new Walking(this.idlePos.pos);
+                waiter.actionState = new Walking(waiter.idlePos);
                 this.hasGivenBill = true;
             }
 
@@ -341,7 +325,7 @@ class TakeOrder extends LifeCycleState {
      * @param {Waiter} waiter 
      */
     init(waiter) {
-      console.debug(TakeOrder.LOGGER_TAG, "init");
+      debug(TakeOrder.LOGGER_TAG, "init");
         this.corner = this.guestGroup.table.getWaiterCorner(waiter);
         waiter.actionState = new Walking(this.corner.pos);
     }
@@ -353,7 +337,7 @@ class TakeOrder extends LifeCycleState {
 
         if (this.hasTakenOrder) {
             if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                waiter.lifeCycleState = new Wait(this.idlePos);
+                waiter.lifeCycleState = new Wait();
             }
         } else {
 
@@ -382,13 +366,11 @@ class TakeOrder extends LifeCycleState {
 
                         this.guestGroup.tableOrder = this.tableOrder; // Set the order inside of the guest group 
 
-                        // After 5 min the order is ready to pick up 
                         setTimeout(() => {
                             waiter.scene.art.services.events.add({ name: "order-ready", data: { guestGroup: this.guestGroup } });
-                        }, 1000 * 5);
+                        }, 1000 * 60);
 
-                        this.idlePos = waiter.scene.getIdlePos();
-                        waiter.actionState = new Walking(this.idlePos.pos);
+                        waiter.actionState = new Walking(waiter.idlePos);
                         waiter.messageBubble.isShowing = false;
 
                     } else {
@@ -414,23 +396,23 @@ class ServeOrder {
          * @type {"kitchen" | "serve" | "idle"}
          */
         this.currGoal = guestGroup.tableOrder.type !== "bill" ? "kitchen" : "serve";
-        console.debug(ServeOrder.LOGGER_TAG, "constructor", guestGroup, this.currGoal);
+        debug(ServeOrder.LOGGER_TAG, "constructor", guestGroup, this.currGoal);
     }
 
     /**
      * @param {Waiter} waiter 
      */
     init(waiter) {
-        console.debug(ServeOrder.LOGGER_TAG, "init");
+        debug(ServeOrder.LOGGER_TAG, "init");
 
         this.corner = this.guestGroup.table.getWaiterCorner(waiter);
 
         // Start walking to kitchen (to get order) or to the table (to directly serve the bill)
         if(this.currGoal === "kitchen") {
-            console.debug(ServeOrder.LOGGER_TAG, "to kitchen");
-            waiter.actionState = new Walking(waiter.scene.getKitchenPos());
+            debug(ServeOrder.LOGGER_TAG, "to kitchen");
+            waiter.actionState = new Walking(waiter.kitchenPos);
         } else if (this.currGoal === "serve") {
-            console.debug(ServeOrder.LOGGER_TAG, "serve");
+            debug(ServeOrder.LOGGER_TAG, "serve");
             waiter.actionState = new Walking(this.corner.pos, true)
         } else {
             // Should never happen.
@@ -444,7 +426,7 @@ class ServeOrder {
         switch (this.currGoal) {
             case "kitchen":
                 if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                    console.debug(ServeOrder.LOGGER_TAG, "serve");
+                    debug(ServeOrder.LOGGER_TAG, "serve");
                     this.currGoal = "serve";
                     waiter.actionState = new Walking(this.corner.pos, true);
                 } 
@@ -470,17 +452,16 @@ class ServeOrder {
                     }
            
 
-                    console.debug(ServeOrder.LOGGER_TAG, "idle");
+                    debug(ServeOrder.LOGGER_TAG, "idle");
                     this.currGoal = "idle";
-                    this.idlePos = waiter.scene.getIdlePos();
-                    waiter.actionState = new Walking(this.idlePos.pos);
+                    waiter.actionState = new Walking(waiter.idlePos);
                 }
 
                 break;
             case "idle":
                 if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                    console.debug(ServeOrder.LOGGER_TAG, "done");
-                    waiter.lifeCycleState = new Wait(this.idlePos);
+                    debug(ServeOrder.LOGGER_TAG, "done");
+                    waiter.lifeCycleState = new Wait();
                 }
                 break;
         }
@@ -503,7 +484,7 @@ class CleanOrder extends LifeCycleState {
      * @param {Waiter} waiter 
      */
     init(waiter) {
-        console.debug(CleanOrder.LOGGER_TAG, "init");
+        debug(CleanOrder.LOGGER_TAG, "init");
         this.corner = this.guestGroup.table.getWaiterCorner(waiter);
         waiter.actionState = new Walking(this.corner.pos);
     }
@@ -515,7 +496,7 @@ class CleanOrder extends LifeCycleState {
         if (this.hasCleanedOrder) {
 
             if (waiter.isWalking() && waiter.actionState.path.hasReachedGoal) {
-                waiter.lifeCycleState = new Wait(waiter.scene.getIdlePos());
+                waiter.lifeCycleState = new Wait();
             }
 
         } else {
@@ -524,7 +505,7 @@ class CleanOrder extends LifeCycleState {
                 if (waiter.actionState.path.hasReachedGoal) {
                     waiter.actionState = new Idle();
                     waiter.messageBubble.showMessage(waiter.scene.createSymbol("smiley"), { x: waiter.pos.x, y: waiter.pos.y - waiter.messageBubble.height });
-                    waiter.direction =            this.corner.direction;
+                    waiter.direction = this.corner.direction;
          
                 }
 
@@ -536,9 +517,7 @@ class CleanOrder extends LifeCycleState {
 
                 this.guestGroup.tableOrder = null;
 
-               
-            this.idlePos = waiter.scene.getIdlePos();
-            waiter.actionState = new Walking(this.idlePos.pos);
+                waiter.actionState = new Walking(waiter.idlePos);
             }
         }
     }
@@ -628,42 +607,44 @@ export default class Waiter extends Sprite {
     * @param {number} height
     * @param {string} who
     */
-    constructor(scene, id, pos, width, height, who) {
+    constructor(scene, id, pos, width, height, who, idlePos, kitchenPos) {
         super(scene, id, pos, width, height);
 
+        this.idlePos = idlePos;
+        this.kitchenPos = kitchenPos;
+
         this.messageBubble = new MessageBubble(this.scene);
-        this.lifeCycleState = new Wait(this.scene.getIdlePos());
+        this.lifeCycleState = new Wait();
 
-        this.gridPos = { row: Math.floor(this.pos.y / this.scene.art.tileSize), col: Math.floor(this.pos.x / this.scene.art.tileSize)};
-        this.gridCellValue = this.scene.grid[this.gridPos.row][this.gridPos.col];
-        this.scene.grid[this.gridPos.row][this.gridPos.col] = this.id; 
+        this.gridPos = null;
+        
 
-        this.animations.create("walk-s", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 0, loop: true });
-        this.animations.create("walk-se", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 4, loop: true });
-        this.animations.create("walk-e", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 8, loop: true });
-        this.animations.create("walk-ne", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 12, loop: true });
-        this.animations.create("walk-n", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 16, loop: true });
-        this.animations.create("walk-nw", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 20, loop: true });
-        this.animations.create("walk-w", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 24, loop: true });
-        this.animations.create("walk-sw", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 100, numberOfFrames: 4, startIdx: 28, loop: true });
+        this.animations.create("walk-s", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 100, numberOfFrames: 4, startIdx: 0, loop: true });
+        this.animations.create("walk-se", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 100, numberOfFrames: 4, startIdx: 4, loop: true });
+        this.animations.create("walk-e", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 100, numberOfFrames: 4, startIdx: 8, loop: true });
+        this.animations.create("walk-ne", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 100, numberOfFrames: 4, startIdx: 12, loop: true });
+        this.animations.create("walk-n", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 100, numberOfFrames: 4, startIdx: 16, loop: true });
+        this.animations.create("walk-nw", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 100, numberOfFrames: 4, startIdx: 20, loop: true });
+        this.animations.create("walk-w", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 100, numberOfFrames: 4, startIdx: 24, loop: true });
+        this.animations.create("walk-sw", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 100, numberOfFrames: 4, startIdx: 28, loop: true });
 
-        this.animations.create("walk-s-serve", { type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 0, loop: true });
-        this.animations.create("walk-se-serve", { type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 4, loop: true });
-        this.animations.create("walk-e-serve", { type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 8, loop: true });
-        this.animations.create("walk-ne-serve", { type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 12, loop: true });
-        this.animations.create("walk-n-serve", { type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 16, loop: true });
-        this.animations.create("walk-nw-serve", { type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 20, loop: true });
-        this.animations.create("walk-w-serve", { type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 24, loop: true });
-        this.animations.create("walk-sw-serve", { type: "spritesheet", frames: "waiter-afro-walk-serve", frameRate: 100, numberOfFrames: 4, startIdx: 28, loop: true });
+        this.animations.create("walk-s-serve", { type: "spritesheet", frames: `waiter-${who}-walk-serve`, frameRate: 100, numberOfFrames: 4, startIdx: 0, loop: true });
+        this.animations.create("walk-se-serve", { type: "spritesheet", frames: `waiter-${who}-walk-serve`, frameRate: 100, numberOfFrames: 4, startIdx: 4, loop: true });
+        this.animations.create("walk-e-serve", { type: "spritesheet", frames: `waiter-${who}-walk-serve`, frameRate: 100, numberOfFrames: 4, startIdx: 8, loop: true });
+        this.animations.create("walk-ne-serve", { type: "spritesheet", frames: `waiter-${who}-walk-serve`, frameRate: 100, numberOfFrames: 4, startIdx: 12, loop: true });
+        this.animations.create("walk-n-serve", { type: "spritesheet", frames: `waiter-${who}-walk-serve`, frameRate: 100, numberOfFrames: 4, startIdx: 16, loop: true });
+        this.animations.create("walk-nw-serve", { type: "spritesheet", frames: `waiter-${who}-walk-serve`, frameRate: 100, numberOfFrames: 4, startIdx: 20, loop: true });
+        this.animations.create("walk-w-serve", { type: "spritesheet", frames: `waiter-${who}-walk-serve`, frameRate: 100, numberOfFrames: 4, startIdx: 24, loop: true });
+        this.animations.create("walk-sw-serve", { type: "spritesheet", frames: `waiter-${who}-walk-serve`, frameRate: 100, numberOfFrames: 4, startIdx: 28, loop: true });
 
-        this.animations.create("idle-s", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 0, loop: true });
-        this.animations.create("idle-se", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 4, loop: true });
-        this.animations.create("idle-e", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 8, loop: true });
-        this.animations.create("idle-ne", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 12, loop: true });
-        this.animations.create("idle-n", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 16, loop: true });
-        this.animations.create("idle-nw", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 20, loop: true });
-        this.animations.create("idle-w", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 24, loop: true });
-        this.animations.create("idle-sw", { type: "spritesheet", frames: "waiter-afro-walk", frameRate: 250, numberOfFrames: 1, startIdx: 28, loop: true });
+        this.animations.create("idle-s", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 250, numberOfFrames: 1, startIdx: 0, loop: true });
+        this.animations.create("idle-se", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 250, numberOfFrames: 1, startIdx: 4, loop: true });
+        this.animations.create("idle-e", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 250, numberOfFrames: 1, startIdx: 8, loop: true });
+        this.animations.create("idle-ne", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 250, numberOfFrames: 1, startIdx: 12, loop: true });
+        this.animations.create("idle-n", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 250, numberOfFrames: 1, startIdx: 16, loop: true });
+        this.animations.create("idle-nw", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 250, numberOfFrames: 1, startIdx: 20, loop: true });
+        this.animations.create("idle-w", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 250, numberOfFrames: 1, startIdx: 24, loop: true });
+        this.animations.create("idle-sw", { type: "spritesheet", frames: `waiter-${who}-walk`, frameRate: 250, numberOfFrames: 1, startIdx: 28, loop: true });
 
     }
 
@@ -676,7 +657,7 @@ export default class Waiter extends Sprite {
      */
     set actionState(state) {
         this.#actionState = state;
-        console.debug(this.#actionState.constructor.LOGGER_TAG, "init");
+        debug(this.#actionState.constructor.LOGGER_TAG, "init");
         this.#actionState.init(this);
     }
 
@@ -685,7 +666,7 @@ export default class Waiter extends Sprite {
      */
     set lifeCycleState(state) {
         this.#lifeCycleState = state;
-        console.debug(this.#lifeCycleState.constructor.LOGGER_TAG, "init");
+        debug(this.#lifeCycleState.constructor.LOGGER_TAG, "init");
         this.#lifeCycleState.init(this);
     }
 
@@ -699,20 +680,25 @@ export default class Waiter extends Sprite {
 
     update() {
         
-        const gridPos = { row: Math.floor(this.pos.y / this.scene.art.tileSize), col: Math.floor(this.pos.x / this.scene.art.tileSize)};
-        
-        if(!(this.gridPos.row === gridPos.row && this.gridPos.col === gridPos.col)) {
-            
-            this.scene.grid[this.gridPos.row][this.gridPos.col] = this.gridCellValue; 
-            this.gridPos = gridPos;
-            this.gridCellValue = this.scene.grid[this.gridPos.row][this.gridPos.col];
-            this.scene.grid[this.gridPos.row][this.gridPos.col] = this.id;
-
-        }
-
         this.animations.update();
         this.#lifeCycleState.update(this);
         this.#actionState.update(this);
+
+        const gridPos = { row: Math.floor(this.pos.y / this.scene.art.tileSize), col: Math.floor(this.pos.x / this.scene.art.tileSize)};
+        
+        if(this.gridPos === null || !(this.gridPos.row === gridPos.row && this.gridPos.col === gridPos.col)) {
+
+
+            if(this.gridPos !== null && this.scene.grid[this.gridPos.row][this.gridPos.col] === this.id) {
+                this.scene.grid[this.gridPos.row][this.gridPos.col] = 2; // Set previous cell to cool down
+            }
+            
+            this.gridPos = gridPos; // Update grid pos 
+            if(this.scene.grid[gridPos.row][gridPos.col] === 0) {
+                this.scene.grid[this.gridPos.row][this.gridPos.col] = this.id; // occupy this grid pos
+            }
+        
+        }
         
     }
 }

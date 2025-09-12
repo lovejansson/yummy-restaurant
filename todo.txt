@@ -1,12 +1,7 @@
 TODO 
 
-***** Placera ut justin och hans gitarrist på scenen
+* Gör Justins gitarris (han med långt hår)
 
-***** Lägg till flera stycken varianter av guests totalt 
+* Lägg till flera stycken varianter av guests totalt
 
-***** Lägg till flera stycken varianter av waiters
-
-
-Bugs to fix 
-
---- Går in i varandra
+* Se till så att saker kan spelas upp på webben (för laptops också så justera css:en) och öppna upp på mobil i sidleds och fyll ut på sidorna med svart!
