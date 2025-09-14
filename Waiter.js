@@ -56,7 +56,7 @@ class Wait extends LifeCycleState {
         waiter.pos = waiter.idlePos;
         waiter.actionState = new Idle();
         waiter.direction = "s";
-
+        waiter.scene.grid[Math.floor(waiter.pos.y / waiter.scene.art.tileSize)][Math.floor(waiter.pos.x / waiter.scene.art.tileSize)] = 1;
     }
 
     /**
@@ -64,34 +64,38 @@ class Wait extends LifeCycleState {
       */
     update(waiter) {
 
-        const event = waiter.scene.art.config.services.events.next();
+        this.event = this.event || waiter.scene.art.config.services.events.next();
 
-        if (event !== undefined) {
-            debug(Wait.LOGGER_TAG, "received event", event);
-
-            switch (event.name) {
+        if (this.event !== undefined) {
+            debug(Wait.LOGGER_TAG, "received event", this.event);
+             waiter.scene.grid[Math.floor(waiter.pos.y / waiter.scene.art.tileSize)][Math.floor(waiter.pos.x / waiter.scene.art.tileSize)] = 0;
+             
+            switch (this.event.name) {
                 case "order-food":
-                    waiter.lifeCycleState = new TakeOrder("food", event.data.guestGroup);
+                    waiter.lifeCycleState = new TakeOrder("food", this.event.data.guestGroup);
                     break;
                 case "order-dessert":
-                    waiter.lifeCycleState = new TakeOrder("dessert", event.data.guestGroup);
+                    waiter.lifeCycleState = new TakeOrder("dessert", this.event.data.guestGroup);
                     break;
                 case "order-done":
-                    waiter.lifeCycleState = new CleanOrder(event.data.guestGroup);
+                    waiter.lifeCycleState = new CleanOrder(this.event.data.guestGroup);
                     break;
                 case "bill":
-                    waiter.lifeCycleState = new BillRequest(event.data.guestGroup);
+                    waiter.lifeCycleState = new BillRequest(this.event.data.guestGroup);
                     break;
                 case "arrive":
-                    waiter.lifeCycleState = new Welcome(event.data.guestGroup);
+                    waiter.lifeCycleState = new Welcome(this.event.data.guestGroup);
                     break;
                 case "bill-ready":
-                    waiter.lifeCycleState = new GiveBill(event.data.guestGroup);
+                    waiter.lifeCycleState = new GiveBill(this.event.data.guestGroup);
                     break;
                 case "order-ready":
-                    waiter.lifeCycleState = new ServeOrder(event.data.guestGroup);
+                    waiter.lifeCycleState = new ServeOrder(this.event.data.guestGroup);
                     break;
             }
+
+            this.event = undefined;
+
         }
     }
 }
@@ -368,7 +372,7 @@ class TakeOrder extends LifeCycleState {
 
                         setTimeout(() => {
                             waiter.scene.art.services.events.add({ name: "order-ready", data: { guestGroup: this.guestGroup } });
-                        }, 1000 * 60);
+                        }, 1000 * 30);
 
                         waiter.actionState = new Walking(waiter.idlePos);
                         waiter.messageBubble.isShowing = false;
@@ -676,6 +680,10 @@ export default class Waiter extends Sprite {
 
     isWalking() {
         return this.#actionState instanceof Walking;
+    }
+
+    isWaiting() {
+        return this.#lifeCycleState instanceof Wait;
     }
 
     update() {

@@ -44,7 +44,6 @@ export default class MusicPlayerElement extends HTMLElement {
 
     async connectedCallback() {
     
-
         const playerContainer = this.shadowRoot.querySelector("#player-container");
         const player = this.shadowRoot.querySelector("#player");
         const btnPlayPause = this.shadowRoot.querySelector("#btn-play-pause");
@@ -85,6 +84,17 @@ export default class MusicPlayerElement extends HTMLElement {
             },
         });
 
+        addEventListener("keydown", (e) => {
+            if (e.key === " " || e.key === "Spacebar") {
+                e.preventDefault();     
+                if (this.youTubePlayer && [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING].includes(this.youTubePlayer.getPlayerState())) {
+                    this.pause();
+                } else { 
+                    this.play();
+                }
+            }
+        });
+
    
 
         this.btnPlayPause.addEventListener("click", () => {
@@ -93,11 +103,9 @@ export default class MusicPlayerElement extends HTMLElement {
             } else {
                 this.play();
             }
-
-        
         });
 
-        playerContainer.addEventListener("click", (e) => {
+        playerContainer.addEventListener("click", () => {
             if (this.youTubePlayer && [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING].includes(this.youTubePlayer.getPlayerState())) {
                 this.pause();
             } else {
@@ -138,6 +146,7 @@ export default class MusicPlayerElement extends HTMLElement {
 
 
     isOn() {
+
         return this.youTubePlayer !== undefined && this.youTubePlayer.getPlayerState && this.youTubePlayer.getPlayerState() === YT.PlayerState.PLAYING;
     }
 

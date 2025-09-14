@@ -1,7 +1,0 @@
-TODO 
-
-* Gör Justins gitarris (han med långt hår)
-
-* Lägg till flera stycken varianter av guests totalt
-
-* Se till så att saker kan spelas upp på webben (för laptops också så justera css:en) och öppna upp på mobil i sidleds och fyll ut på sidorna med svart!

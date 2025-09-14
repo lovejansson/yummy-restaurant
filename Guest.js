@@ -410,7 +410,7 @@ export class Leave extends LifeCycleState {
     init(guest) {
         setTimeout(() => {
             this.shouldLeave = true;
-        }, [6000, 5000, 3000, 1000][guest.tableSide])
+        }, [3000, 2000, 2000, 1000][guest.tableSide])
 
     }
 
@@ -779,8 +779,12 @@ export default class Guest extends Sprite {
 
     static LOGGER_TAG = "Guest";
 
-    static VARIANTS = ["asian-man-1", "asian-man-2", "black-man-1", "black-woman", "blondie", "brunette", "ginger-1", "granny", "granny2", "jb-old-school",
-        "old-man-1", "old-man-2"
+    static VARIANTS = ["asian-man-1", "asian-man-2", "black-man-1", "black-woman-1", "black-woman-2", "blondie", "brunette", "ginger-1", "granny", "granny2", "jb-old-school",
+        "old-man-1", "old-man-2", "man-brown"
+    ];
+
+    static VARIANTS_POOL = ["asian-man-1", "asian-man-2", "black-man-1", "black-woman-1", "black-woman-2", "blondie", "brunette", "ginger-1", "granny", "granny2", "jb-old-school",
+        "old-man-1", "old-man-2", "man-brown"
     ];
 
     /**
@@ -807,7 +811,7 @@ export default class Guest extends Sprite {
      * @param {number} tableSide
      */
     constructor(scene, variant, pos, tableSide) {
-        super(scene, Symbol("guest"), pos, 17, 32);
+        super(scene, Symbol("guest"), pos, 17, variant === "asian-man-2" ? 34 : 32);
 
         /**
          * @type {Direction}
@@ -850,6 +854,20 @@ export default class Guest extends Sprite {
         this.animations.create("drink-e", { type: "spritesheet", frames: `${variant}-drink`, frameRate: 1000, numberOfFrames: 1, startIdx: 4, loop: true });
         this.animations.create("drink-s", { type: "spritesheet", frames: `${variant}-drink`, frameRate: 1000, numberOfFrames: 1, startIdx: 1, loop: true });
         this.animations.create("drink-w", { type: "spritesheet", frames: `${variant}-drink`, frameRate: 1000, numberOfFrames: 1, startIdx: 7, loop: true });
+    }
+
+    static GetVariant() {
+        const randomVariant = Guest.VARIANTS_POOL.random();
+
+        Guest.VARIANTS_POOL.remove(randomVariant);
+
+        if(!randomVariant){
+            console.error("Variant is undefined, resetting pool");
+            Guest.VARIANTS_POOL = [...Guest.VARIANTS];
+            return Guest.GetVariant();
+        }
+
+        return randomVariant;
     }
 
     get actionState() {

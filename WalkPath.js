@@ -58,12 +58,6 @@ export class WalkPath {
 
         if(!this.hasReachedGoal) {
                                          
-            // If we are about to go to the next cell we need to verify that it is not occupied first
-
-      
-
-            // else update the position as usual and check if the cell should go to t nexthe
-
             this.#updatePosition();
 
             if (this.#currPixelDiff === this.sprite.scene.art.tileSize) {
@@ -75,23 +69,6 @@ export class WalkPath {
 
     getPos() {
         return this.#currPos;
-    }
-
-    #verifyNext() {
-        
-      const next = this.#path[this.#currCellIdx + 1];
-
-
-        if (![this.sprite.id, 0].includes(this.sprite.scene.grid[next.row][next.col])){
-            debug(WalkPath.LOGGER_TAG, "Next cell is occupied by another sprite", this.sprite.scene.grid[next.row][next.col]);
-              debug(WalkPath.LOGGER_TAG, this.#path)
-            debug(WalkPath.LOGGER_TAG, this.#path.map(c => `${c.row}:${c.col}`))
-            debug(WalkPath.LOGGER_TAG, this.#path.map(c =>this.sprite.scene.grid[c.row][c.col]))
-
-            return false;
-        } 
-
-        return true;
     }
 
     #checkReachedGoal() {

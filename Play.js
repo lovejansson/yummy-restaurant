@@ -6,6 +6,8 @@ import  { Table, Chair } from "./Table.js";
 import GuestGroup from "./GuestGroup.js"; 
 import Guest
  from "./Guest.js";
+ import JB from "./Jb.js";
+ import Dan from "./Dan.js";
 
 /**
  * @typedef  {{pos: {x: number, y: number}, isAvailable: boolean}} AvailablePos
@@ -46,6 +48,10 @@ export default class Play extends Scene {
 
     anyGuestsAreArriving() {
         return this.guestGroups.some(gg => gg.guests.some(g => g.isArriving()));
+    }
+
+    allWaitersAreWaiting() {
+        return this.waiters.every(w => w.isWaiting());
     }
     
 
@@ -90,6 +96,8 @@ export default class Play extends Scene {
 
     async init() {
         console.debug("Play init")
+        this.art.images.add("jb", `${BASE_URL}images/jb.png`);
+        this.art.images.add("dan", `${BASE_URL}images/dan.png`);
         this.art.images.add("table", `${BASE_URL}images/table.png`);
         this.art.images.add("background", `${BASE_URL}images/background.png`);
         this.art.images.add("waiter-afro-walk", `${BASE_URL}images/waiters/waiter-afro-walk.png`);
@@ -191,15 +199,21 @@ export default class Play extends Scene {
     
         this.#initGuests(); 
 
+        this.jb = new JB(this);
+
+        this.dan = new Dan(this);
+
         this.isInitialized = true;
     }
 
 
     update() {
 
-        if(!this.anyGuestsAreArriving() && !this.anyGuestsAreLeaving() && this.guestGroups.length < 4) {      
+        if(!this.anyGuestsAreArriving() && !this.anyGuestsAreLeaving() && this.allWaitersAreWaiting()
+             && this.guestGroups.length < 4) {      
             this.#createGuestGroup({name: "arrive"});
-         }
+        } 
+
         for(const w of this.waiters) {
             w.update()
         }
@@ -211,6 +225,9 @@ export default class Play extends Scene {
                 g.update();
             }
         }
+
+        this.dan.update();
+        this.jb.update();
 
     }
 
@@ -273,6 +290,9 @@ export default class Play extends Scene {
             }
         }
 
+        this.dan.draw(ctx);
+        this.jb.draw(ctx);
+
     }
 
 
@@ -283,7 +303,7 @@ export default class Play extends Scene {
         this.grid = createGrid(rows, cols, 0);
 
         // Top 2 rows to 1 (non-walkable)
-        for (let r = 0; r < 2; ++r) {
+        for (let r = 0; r < 3; ++r) {
             for (let c = 0; c < cols; ++c) {
                 this.grid[r][c] = 1;
             }
@@ -323,10 +343,10 @@ export default class Play extends Scene {
         const tileSize = 16;
 
         const tablePositions = [ 
-            { x: 2 * tileSize, y: 4 * tileSize },  
-            { x: 2 * tileSize, y: 10 * tileSize }, 
+            { x: 2 * tileSize, y: 4 * tileSize },
             { x: 15 * tileSize, y: 4 * tileSize }, 
             { x: 9 * tileSize, y: 7 * tileSize },
+            { x: 2 * tileSize, y: 10 * tileSize },
             { x: 15 * tileSize, y: 10 * tileSize } ];
 
         
@@ -348,16 +368,16 @@ export default class Play extends Scene {
                 chairs.push(new Chair(this, {...pos}, 17, 32, `chair-${i}`, i));
             }
 
-            this.tables.push(new Table(this, tp, chairs, i));
+            this.tables.push(new Table(this, tp, chairs, i, ));
 
          }
     }
 
     #initGuests() {
         this.#createGuestGroup( {name: "order", type: "food"});
-        this.#createGuestGroup( {name: "receive-order", type: "dessert"});
-        this.#createGuestGroup( {name: "eat-drink", type: "dessert"});
+        this.#createGuestGroup( {name: "eat-drink", type: "food"});
         this.#createGuestGroup( {name: "arrive"});  
+        this.#createGuestGroup( {name: "eat-drink", type: "dessert"});
         this.#createGuestGroup( {name: "ask-bill"});
     }
 

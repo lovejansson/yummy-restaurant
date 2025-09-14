@@ -48,29 +48,32 @@ export default class GuestGroup {
 
         // Create the guests and sort by distance to table so the closest guest gets the first chair
 
-        const numOfGuests = 4; //  Math.ceil(Math.random() * 4);
+        const numOfGuests = [3, 4, 3, 2, 1][this.table.tableNum];
 
-        if (numOfGuests === 2) {
-
+        switch(numOfGuests) {  
+            case 1:
+                this.guests.push(new Guest(this.scene, Guest.GetVariant(), { x: 0, y: 0 }, 0));
+                break;
+            case 2:
             // Either north and south side or east and west side of the table
             const tableSide = Math.random() > 0.5 ? [0, 2] : [1, 3];
 
             for (let i = 0; i < 2; ++i) {
-                this.guests.push(new Guest(this.scene, this.#pickGuestVariant(), { x: 0, y: 0 }, tableSide[i]));
+                this.guests.push(new Guest(this.scene, Guest.GetVariant(), { x: 0, y: 0 }, tableSide[i]));
             }
-
-        } else {
-
-            const startIdx = Math.min(4 - numOfGuests, Math.floor(Math.random() * 4));
-
-            for (let i = startIdx; i < startIdx + numOfGuests; ++i) {
-                const guest = new Guest(this.scene, this.#pickGuestVariant(), { x: 0, y: 0 }, i);
-                this.guests.push(guest);
+            break;
+        case 3:
+            for (let i = 1; i < 4; ++i) {
+                this.guests.push(new Guest(this.scene, Guest.GetVariant(), { x: 0, y: 0 }, i));
             }
+            break;  
+        case 4:
+            for (let i = 0; i < 4; ++i) {
+                this.guests.push(new Guest(this.scene,Guest.GetVariant(), { x: 0, y: 0 }, i));
+            }
+            break;
         }
-
  
-
         // Initialize the states 
         switch (this.state.name) {
 
@@ -97,7 +100,7 @@ export default class GuestGroup {
                     y: FIRST_POS.y + this.scene.art.tileSize - this.messageBubble.height
                 }
                 setTimeout(() => {
-                    this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
+                    this.messageBubble.showMessage(this.scene.createSymbol("exclamation"), 
                     msgBubblePos, 1000 * 60);
                      this.scene.art.services.events.add({ name: this.state.name, data: { guestGroup: this } });
                 }, 1500)
@@ -131,7 +134,7 @@ export default class GuestGroup {
                     };
 
                     this.messageBubble.showMessage(this.scene.createSymbol("exclamation"),
-                        msgBubblePos, 10000);
+                        msgBubblePos, 1000 * 60);
 
                     setTimeout(() =>  {
                         this.scene.art.services.events.add({ name: `${this.state.name}-${this.state.type}`, data: { guestGroup: this } });
@@ -150,10 +153,9 @@ export default class GuestGroup {
                     g.lifeCycleState = new ReceiveOrder();
                 }
 
-                // After 5 min the order is ready to pick up 
                 setTimeout(() => {
                     this.scene.art.services.events.add({ name: "order-ready", data: { guestGroup: this } });
-                }, 1000 * 5);
+                }, 1000 * 30);
 
                 break;
             case "ask-bill":
@@ -177,7 +179,7 @@ export default class GuestGroup {
                             x: Math.round(this.table.centerPos.x - this.messageBubble.halfWidth),
                             y: Math.round(this.table.centerPos.y - this.messageBubble.height * 2)
                         },
-                        5000)
+                        1000 * 60)
 
                     break;
                 }
@@ -211,15 +213,7 @@ export default class GuestGroup {
     }
 
     update() {
-        // debug(GuestGroup.LOGGER_TAG, "update", "table", this.table.tableNum);
-        // debug(GuestGroup.LOGGER_TAG, this.state);
 
-        if(!this.lifeCycleStateIsDone() && this.state.name === "eat-drink") {
-            // for(const g of this.guests) {
-            //     console.dir(g);
-            // }
-        }
-       
         if (this.lifeCycleStateIsDone()) {
             debug(GuestGroup.LOGGER_TAG, "guest group is done with ", this.state.name)
             switch (this.state.name) {
@@ -237,8 +231,9 @@ export default class GuestGroup {
 
                             this.scene.art.services.events.add({ name: "order-food", data: { guestGroup: this } });
 
-                        }, 10000);
+                        }, 1000 * 60);
                         this.state = { name: "order", type: "food" };
+            
                         break;
                     }
                 case "order": {
@@ -280,7 +275,7 @@ export default class GuestGroup {
                             x: Math.round(this.table.centerPos.x - this.messageBubble.halfWidth),
                             y: Math.round(this.table.centerPos.y - this.messageBubble.height * 2)
                         },
-                        5000)
+                        1000 * 60)
 
                     this.scene.art.services.events.add({ name: "order-done", data: { guestGroup: this } });
 
@@ -312,7 +307,7 @@ export default class GuestGroup {
                             x: Math.round(this.table.centerPos.x - this.messageBubble.halfWidth),
                             y: Math.round(this.table.centerPos.y - this.messageBubble.height * 2)
                         },
-                        5000)
+                        1000 * 60)
 
                     break;
 
@@ -331,11 +326,15 @@ export default class GuestGroup {
                     break;
 
                 case "leave-wait":
-                    if(this.scene.anyGuestsAreLeaving() || this.scene.anyGuestsAreArriving()) break; // It's to crowded to leave right now
+
+                    if(this.scene.anyGuestsAreLeaving() || this.scene.anyGuestsAreArriving() || !this.scene.allWaitersAreWaiting()) break; // It's to crowded to leave right now
+                    
                     for (let i = 0; i < this.guests.length; ++i) {
                         this.guests[i].lifeCycleState = new Leave();
                     }
-                    this.state = { name: "leave" }; 
+
+                    this.state = { name: "leave" };
+
                     break;
 
                 case "leave":
@@ -343,19 +342,6 @@ export default class GuestGroup {
                     break;
             }
         }
-    }
-
-    #pickGuestVariant() {
-
-        let guestVariant = ""
-
-        do {
-            guestVariant = Guest.VARIANTS.random();
-        }
-
-        while (this.guests.find(g => g.variant === guestVariant));
-
-        return guestVariant;
     }
 
     #createRandomTableOrder(type) {

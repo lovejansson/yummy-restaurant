@@ -133,7 +133,7 @@ function createPathAStar(start, end, grid) {
     const manhattan = (from, to) => Math.abs(to.row - from.row) + Math.abs(to.col - from.col);
     const euclidean = (from, to) => Math.sqrt(Math.pow(from.row - to.row, 2) + Math.pow(from.col - to.col, 2));
 
-    const heuristic = euclidean;
+    const heuristic = manhattan;
 
     const reconstructPath = (pathMap) => {
 

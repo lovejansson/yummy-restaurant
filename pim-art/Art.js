@@ -109,6 +109,9 @@ export default class Art {
         setInterval(()=> {
             const {hours, minutes, seconds} = diffHMS(new Date(), this.startTime)
             console.log(`Time since start ${hours}:${minutes}:${seconds}`);
+            for(const gg of this.config.play.guestGroups) {
+                console.log(`GuestGroup at table ${gg.table.tableNum} has state ${gg.state.name} ${gg.state.type ?? ""}`);
+            }
         }, 1000 * 60 * 10); // every 10 minutes
     }
 
