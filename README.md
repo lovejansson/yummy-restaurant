@@ -6,7 +6,7 @@ The art displays a restaurant simulation set at the Yummy Restaurant where Justi
 
 ## How it works 
 
-The program is written in Vanilla Javascript using the work-in-progress 'pim-art' library. Down below is an overview of the core systems that make up the scene.
+The program is written in Vanilla Javascript using the work-in-progress [pimart](https://github.com/lovejansson/pimart) library. Down below is an overview of the core systems that make up the scene.
 
 ### State classes for lifecycle and actions 
 
@@ -18,9 +18,9 @@ All of the states are represented by a class and whenever a sprite enters a new 
 
 ### Restaurant Events 
 
-The events array stores Restaurant Events which is the work load for the waiters. 
+The EventsManager stores RestaurantEvents in an array  which is the work load for the waiters. 
 
-The flow starts with a group of guests firing an event when they need service, for example when they want to order food. The waiters will read the first item in the events array while in Wait state and transition to the appropriate new state, in this case TakingOrder. The full list of Restaurant Events is ”arrive,order-food,bill”. 
+The flow starts with a group of guests adding an event when they need service, for example if they want to order food they add the event 'order-food'. The waiters will check for events while in Wait state and transition to the appropriate new state, in this case TakingOrder. 
 
 ### Messaging 
 
