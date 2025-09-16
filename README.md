@@ -10,7 +10,7 @@ The program is written in Vanilla Javascript using the work-in-progress <a href=
 
 <h3>State classes for lifecycle and actions</h3>
 
-<p>A *sprite*’s (2D image or animation in the scene, i.e. one of the guests or waiters) current goal and behaviour are defined by its state. The lifecycle state determines which general state it is in, for example, the Waiter can ServeOrder and the Guest can EatAndDrink. 
+<p>A <abbr title="2D image or animation in the scene, i.e. one of the guests or waiters">sprite's</abbr> current goal and behaviour are defined by its state. The lifecycle state determines which general state it is in, for example, the Waiter can ServeOrder and the Guest can EatAndDrink. 
 
 The action state is controlling how the sprite moves. A Sprite can walk, sit idle, stand idle, eat, drink and so on. The action state is in turn controlled by the lifecycle states. 
 
