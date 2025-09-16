@@ -123,7 +123,6 @@ function createPathAStar(start, end, grid) {
     if(!cellIsWithinBounds(end, grid)) throw new Error("end cell is out of bounds"); 
     if(grid[start.row][start.col] === 1) throw new Error(`start cell is a non walkable cell: ${start.row}:${start.col}`);
     if(grid[end.row][end.col] === 1) {
-        console.dir(grid)
         throw new Error(`end cell is a non walkable cell. ${end.row}:${end.col}`);}
 
 

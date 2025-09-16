@@ -1,5 +1,5 @@
 import { Scene, StaticImage } from "./pim-art/index.js";
-import { createGrid, drawGrid } from "./path.js";
+import { createGrid } from "./path.js";
 import Waiter from "./Waiter.js";
 import { BASE_URL } from "./config.js";
 import  { Table, Chair } from "./Table.js";
@@ -8,6 +8,7 @@ import Guest
  from "./Guest.js";
  import JB from "./Jb.js";
  import Dan from "./Dan.js";
+ import { debug } from "./index.js";
 
 /**
  * @typedef  {{pos: {x: number, y: number}, isAvailable: boolean}} AvailablePos
@@ -38,7 +39,6 @@ export default class Play extends Scene {
     removeGuestGroup(guestGroup) {
         guestGroup.table.isAvailable = true;
         this.guestGroups.remove(guestGroup);
-        this.#createGuestGroup({name: "arrive"});
     }
 
     anyGuestsAreLeaving() {
@@ -59,26 +59,6 @@ export default class Play extends Scene {
         return this.guestGroups.find(gg => gg.guests.find(g => g === guest) !== undefined);
     }
 
-    getOrderFor(guestGroup) {
-        return this.orders.find(to => to.guestGroup === guestGroup);
-    }
-
-    getGuestOrder(guest) {
-        return this.orders.flatMap(o => o.guestOrders).find(go => go.guestId === guest.id);
-    }
-
-    getChairFor(guest) {
-        const guestGroup = this.getGroupFor(guest);
-        if(guestGroup === undefined) throw new Error("Invalid data state");
-
-        const chair = guestGroup.table.chairs.find(c => c.tableSide === guest.tableSide);
-
-        if (chair === undefined) throw new Error("Invalid data state");
-
-        return chair;
-
-    }
-    
     createSymbol(image) {
         return new StaticImage(this, Symbol("symbol"), 
                 {x: 0, y: 0},9, 7, image);
@@ -95,7 +75,7 @@ export default class Play extends Scene {
     }
 
     async init() {
-        console.debug("Play init")
+        debug("Play init")
         this.art.images.add("jb", `${BASE_URL}images/jb.png`);
         this.art.images.add("dan", `${BASE_URL}images/dan.png`);
         this.art.images.add("table", `${BASE_URL}images/table.png`);
@@ -303,10 +283,15 @@ export default class Play extends Scene {
         this.grid = createGrid(rows, cols, 0);
 
         // Top 2 rows to 1 (non-walkable)
-        for (let r = 0; r < 3; ++r) {
+        for (let r = 0; r < 2; ++r) {
             for (let c = 0; c < cols; ++c) {
                 this.grid[r][c] = 1;
             }
+        }
+
+        // The idle place for waiters 
+        for(let c = 8; c < 12; ++c) {
+            this.grid[2][c] = 1;
         }
 
         // Rightmost 4 columns to 1 (non-walkable)

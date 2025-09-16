@@ -6,7 +6,7 @@ import EventsManager from "./EventsManager.js";
 import MessagesManager from "./message.js";
 import {Debugger} from "./debugger.js";
 
-export const debug = Debugger(false);
+export const debug = Debugger(true);
 
 const art = new Art({ 
     pause: new Pause(),

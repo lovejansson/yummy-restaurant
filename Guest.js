@@ -862,7 +862,7 @@ export default class Guest extends Sprite {
         Guest.VARIANTS_POOL.remove(randomVariant);
 
         if(!randomVariant){
-            console.error("Variant is undefined, resetting pool");
+            debug("Variant is undefined, resetting pool");
             Guest.VARIANTS_POOL = [...Guest.VARIANTS];
             return Guest.GetVariant();
         }
