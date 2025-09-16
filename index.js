@@ -23,7 +23,6 @@ art.play();
 
 const musicPlayerEl = document.querySelector("music-player");
 
-
 musicPlayerEl.addEventListener("play", () => {
     if(!art.isPlaying) {
         art.isPlaying = true;
@@ -37,3 +36,20 @@ musicPlayerEl.addEventListener("pause", () => {
     }
 });
 
+
+// Receive messages from the parent window pimpixels.com for space bar press
+
+addEventListener("message", (event) => {
+
+  const data = event.data;
+
+  if (data.action === "play") {
+      if(!musicPlayerEl.isOn()) {
+        musicPlayerEl.play();
+      } 
+  } else if(data.action === "pause") {
+    if(musicPlayerEl.isOn()) {
+        musicPlayerEl.pause();
+    }
+  }
+});

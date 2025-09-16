@@ -83,22 +83,10 @@ export default class MusicPlayerElement extends HTMLElement {
                 'onStateChange': this.handlePlayerStateChange.bind(this),
             },
         });
-
-        addEventListener("keydown", (e) => {
-            if (e.key === " " || e.key === "Spacebar") {
-                e.preventDefault();     
-                if (this.youTubePlayer && [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING].includes(this.youTubePlayer.getPlayerState())) {
-                    this.pause();
-                } else { 
-                    this.play();
-                }
-            }
-        });
-
    
 
         this.btnPlayPause.addEventListener("click", () => {
-            if (this.youTubePlayer && [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING].includes(this.youTubePlayer.getPlayerState())) {
+            if (this.isOn()) {
                 this.pause();
             } else {
                 this.play();
@@ -106,7 +94,7 @@ export default class MusicPlayerElement extends HTMLElement {
         });
 
         playerContainer.addEventListener("click", () => {
-            if (this.youTubePlayer && [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING].includes(this.youTubePlayer.getPlayerState())) {
+            if (this.isOn()) {
                 this.pause();
             } else {
                 this.play();
@@ -119,7 +107,7 @@ export default class MusicPlayerElement extends HTMLElement {
 
         
         btnShuffle.addEventListener("click", (e) => {
-            if (this.youTubePlayer && this.youTubePlayer.getPlayerState() === YT.PlayerState.PLAYING) {
+            if (this.isOn()) {
                 this.pickSong();
             }
         });
@@ -146,8 +134,7 @@ export default class MusicPlayerElement extends HTMLElement {
 
 
     isOn() {
-
-        return this.youTubePlayer !== undefined && this.youTubePlayer.getPlayerState && this.youTubePlayer.getPlayerState() === YT.PlayerState.PLAYING;
+        return this.youTubePlayer && [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING].includes(this.youTubePlayer.getPlayerState());
     }
 
 
