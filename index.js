@@ -43,13 +43,11 @@ addEventListener("message", (event) => {
 
   const data = event.data;
 
-  if (data.action === "play") {
-      if(!musicPlayerEl.isOn()) {
-        musicPlayerEl.play();
-      } 
-  } else if(data.action === "pause") {
+  if(data.action === "toggle-play-pause"){
     if(musicPlayerEl.isOn()) {
         musicPlayerEl.pause();
+    } else {
+        musicPlayerEl.play();
     }
   }
 });
