@@ -134,7 +134,7 @@ export default class MusicPlayerElement extends HTMLElement {
 
 
     isOn() {
-        return this.youTubePlayer && [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING].includes(this.youTubePlayer.getPlayerState());
+        return this.youTubePlayer !== undefined && [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING].includes(this.youTubePlayer.getPlayerState());
     }
 
 

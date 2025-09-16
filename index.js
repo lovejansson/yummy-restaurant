@@ -36,18 +36,35 @@ musicPlayerEl.addEventListener("pause", () => {
     }
 });
 
+addEventListener("keydown", (e) => {
+  if (e.key === " " || e.key === "Spacebar") {
+    e.preventDefault();
+    togglePlayPause();
+  } else if(e.key === "f" || e.key === "F") {
+     art.enterFullScreen();
+  }
+});
 
-// Receive messages from the parent window pimpixels.com for space bar press
-
+/**
+ * Communication from parent document (pimpixels): 
+ * 
+ * F/f keydown events is relayed here via message "enter-fullscreen".
+ * Space keydown events is relayed here via message "toggle-play-pause".
+ * 
+ */
 addEventListener("message", (event) => {
+    const data = event.data;
+    if(data.action === "toggle-play-pause"){
+        togglePlayPause();
+    } else if (data.action === "enter-fullscreen") {
+        art.enterFullScreen();
+    }
+});
 
-  const data = event.data;
-
-  if(data.action === "toggle-play-pause"){
-    if(musicPlayerEl.isOn()) {
+function togglePlayPause() {
+ if(musicPlayerEl.isOn()) {
         musicPlayerEl.pause();
     } else {
         musicPlayerEl.play();
     }
-  }
-});
+}
