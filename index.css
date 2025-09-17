@@ -21,12 +21,21 @@ body {
     background: black;
 }
 
-#canvas-container {
+#art-container {
     position: relative;
-    width: auto;
-    height: 100%;
     aspect-ratio: 400 / 225;
     margin: auto;
+    width: 100%;
+    height: auto;
+}
+
+@media screen and (min-aspect-ratio: 16/9){
+    #art-container {
+    width: auto;
+    height: 100%;
+    margin: auto;
+    
+    }
 }
 
 canvas {

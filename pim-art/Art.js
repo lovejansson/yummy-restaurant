@@ -23,7 +23,7 @@ import { debug } from "../index.js";
  */
 
 const FRAME_RATE_DEFAULT = 30;
-const CANVAS_SELECTOR_DEFAULT = "canvas";
+const CANVAS_SELECTOR_DEFAULT = "art-canvas";
 const DEFAULT_TILE_SIZE = 16;
 
 /**
@@ -103,12 +103,13 @@ export default class Art {
     }
 
     enterFullScreen(){
-        const container = document.querySelector(this.config.canvas || CANVAS_SELECTOR_DEFAULT);
+        const container = document.querySelector("body");
 
         if(!container) throw new Error("art container not found");
 
         if(document.fullscreenElement === null) {
             container.requestFullscreen();
+
         } else {
             console.warn("An element is already in fullscreen mode: ", document.fullscreenElement);
         }
