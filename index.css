@@ -19,7 +19,9 @@ body {
     display: flex;
     flex-direction: column;
     background: black;
+    overflow: hidden;
 }
+
 
 #art-container {
     position: relative;
@@ -29,6 +31,9 @@ body {
     height: auto;
 }
 
+
+/* If screen for device has aspect ratio of 16/9 or bigger the height will take up the full height of the screen 
+and the widths will be automatically sized while filled with black */
 @media screen and (min-aspect-ratio: 16/9){
     #art-container {
     width: auto;
